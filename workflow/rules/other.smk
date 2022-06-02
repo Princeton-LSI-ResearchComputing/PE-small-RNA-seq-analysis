@@ -4,8 +4,9 @@ rule rule:
     input: "data/fastq_from_sequencer/{file}.fastq"
     output: "results/{file}.fastq_stats.txt"
     log: "results/fastq_stats/{file}.log"
-    shell: 'stats ""{input}" '
+    shell:
+        'stats ""{input}" '
             '--param value '
-            '--output "{output}"
+            '--output "{output}" '
             '&> "{log}"'
 
