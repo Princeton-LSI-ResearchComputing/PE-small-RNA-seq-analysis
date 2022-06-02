@@ -1,0 +1,7 @@
+*~
+*.swp
+
+/.snakemake*
+scripts/.snakemake*
+
+results/

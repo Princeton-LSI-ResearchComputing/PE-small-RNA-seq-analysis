@@ -1,0 +1,11 @@
+---
+name: "smallRNA Pipeline"
+description: "Workflow for analysis of smRNA"
+contact: "tcomi@princeton.edu"
+pi: "Adamson"
+lsi_staff: "Troy Comi <tcomi@princeton.edu>"
+start_date: "2022-06-02"
+completion_date: ""
+repository: "http://github.com/troycomi/adamson_smRNA"
+hostname: ""
+documentation: "README.md"
