@@ -22,8 +22,7 @@ validate(units, schema="schemas/units.schema.yaml")
 ##### target rules #####
 rule all:
     input:
-        # The first rule should define the default target files
-        # Subsequent target rules can be specified below. They should start with all_*.
+        'results/qc/multiqc.html',  # from quality_control
 
 ##### setup singularity #####
 
@@ -37,4 +36,4 @@ report: "report/workflow.rst"
 
 ##### load rules #####
 
-include: "rules/other.smk"
+include: "rules/quality_control.smk"
