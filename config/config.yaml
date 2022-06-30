@@ -4,3 +4,5 @@ samples: config/samples.tsv
 # Units are technical replicates (e.g. lanes, or resequencing of the same biological
 # sample).
 units: config/units.tsv
+
+reference: /reference-genomes/homo_sapiens/grch38_p12/genome_sequence/Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa

@@ -4,6 +4,7 @@ def input_fastp_pe(wildcards):
             sequence.fq1,
             sequence.fq2,
             ]
+
 rule fastp_pe:
     input:
         sample=input_fastp_pe
@@ -12,7 +13,7 @@ rule fastp_pe:
         unpaired="results/trimmed/{sample}_{unit}.singletons.fastq.gz",
         failed="results/trimmed/{sample}_{unit}.failed.fastq.gz",
         html="results/report/fastp/{sample}_{unit}.html",
-        json="results/report/fastp/{sample}_{unit}.json",
+        json="results/report/fastp/{sample}_{unit}.fastp.json",
     log:
         "results/logs/fastp/{sample}_{unit}.log"
     params:
@@ -24,12 +25,11 @@ rule fastp_pe:
 rule join_references:
     input:
         targets='data/references/targets.fa',
-        reference='/reference-genomes/homo_sapiens/grch38_p12/genome_sequence/Homo_sapiens.GRCh38.dna_sm.primary_assembly.fa',
+        reference=config['reference']
     output:
         'data/references/grch38_p12_targets.fa'
     shell:
         'cat {input} > {output}'
-
 
 rule bowtie2_build_large:
     input:
