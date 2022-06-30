@@ -1,9 +1,9 @@
-name: adamson_smRNA
+name: adamson-smallRNA
 channels:
     - conda-forge
     - bioconda
     - defaults
 dependencies:
-    - snakemake>=6.6.1
-    - snakefmt>=0.4.1
+    - snakemake>=7.8.3
+    - snakefmt>=0.6.1
     - drmaa>=0.7.9

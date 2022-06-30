@@ -1,35 +1,41 @@
 def input_fastp_pe(wildcards):
     sequence = units.loc[wildcards.sample, wildcards.unit]
     return [
-            sequence.fq1,
-            sequence.fq2,
-            ]
+        sequence.fq1,
+        sequence.fq2,
+    ]
+
 
 rule fastp_pe:
     input:
-        sample=input_fastp_pe
+        sample=input_fastp_pe,
     output:
-        trimmed=["results/trimmed/{sample}_{unit}.1.fastq.gz", "results/trimmed/{sample}_{unit}.2.fastq.gz"],
+        trimmed=[
+            "results/trimmed/{sample}_{unit}.1.fastq.gz",
+            "results/trimmed/{sample}_{unit}.2.fastq.gz",
+        ],
         unpaired="results/trimmed/{sample}_{unit}.singletons.fastq.gz",
         failed="results/trimmed/{sample}_{unit}.failed.fastq.gz",
         html="results/report/fastp/{sample}_{unit}.html",
         json="results/report/fastp/{sample}_{unit}.fastp.json",
     log:
-        "results/logs/fastp/{sample}_{unit}.log"
+        "results/logs/fastp/{sample}_{unit}.log",
     params:
         adapters="--detect_adapter_for_pe",
     threads: 2
     wrapper:
         "v1.5.0/bio/fastp"
 
+
 rule join_references:
     input:
-        targets='data/references/targets.fa',
-        reference=config['reference']
+        targets="data/references/targets.fa",
+        reference=config["reference"],
     output:
-        'data/references/grch38_p12_targets.fa'
+        "data/references/grch38_p12_targets.fa",
     shell:
-        'cat {input} > {output}'
+        "cat {input} > {output}"
+
 
 rule bowtie2_build_large:
     input:
@@ -52,9 +58,13 @@ rule bowtie2_build_large:
     wrapper:
         "v1.5.0/bio/bowtie2/build"
 
+
 rule bowtie2:
     input:
-        sample=["results/trimmed/{sample}_{unit}.1.fastq.gz", "results/trimmed/{sample}_{unit}.2.fastq.gz"],
+        sample=[
+            "results/trimmed/{sample}_{unit}.1.fastq.gz",
+            "results/trimmed/{sample}_{unit}.2.fastq.gz",
+        ],
         idx=multiext(
             "data/references/grch38_p12_targets",
             ".1.bt2l",
