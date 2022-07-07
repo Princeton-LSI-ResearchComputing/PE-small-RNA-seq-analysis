@@ -24,7 +24,7 @@ rule fastp_pe:
         adapters="--detect_adapter_for_pe",
     threads: 2
     wrapper:
-        "v1.5.0/bio/fastp"
+        "v1.7.0/bio/fastp"
 
 
 rule join_references:
@@ -54,9 +54,11 @@ rule bowtie2_build_large:
         "results/logs/bowtie2_build/build.log",
     params:
         extra="--large-index",  # optional parameters
-    threads: 8
+    threads: 12
+    resources:
+        time="06:00:00",
     wrapper:
-        "v1.5.0/bio/bowtie2/build"
+        "v1.7.0/bio/bowtie2/build"
 
 
 rule bowtie2:
@@ -82,4 +84,4 @@ rule bowtie2:
         extra="",  # optional parameters
     threads: 8  # Use at least two threads
     wrapper:
-        "v1.5.0/bio/bowtie2/align"
+        "v1.7.0/bio/bowtie2/align"

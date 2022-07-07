@@ -5,12 +5,12 @@
 import pandas as pd
 from snakemake.utils import validate, min_version
 
+
 ##### set minimum snakemake version #####
-min_version("6.6.1")
+min_version("7.8.3")
+
 
 ##### load config and sample sheets #####
-
-
 configfile: "config/config.yaml"
 
 
@@ -40,12 +40,12 @@ rule all:
         ),
 
 
-##### setup singularity #####
+##### setup container #####
 
 
 # this container defines the underlying OS for each job when using the workflow
 # with --use-conda --use-singularity
-singularity: "docker://continuumio/miniconda3"
+# container: "docker://continuumio/miniconda3"
 
 
 ##### setup report #####

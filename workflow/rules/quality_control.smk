@@ -10,7 +10,7 @@ rule fastqc:
     params:
         "--quiet",
     wrapper:
-        "v1.5.0/bio/fastqc"
+        "v1.7.0/bio/fastqc"
 
 
 def multiqc_input(wildcards):
@@ -42,4 +42,4 @@ rule multiqc:
     log:
         "results/logs/multiqc.log",
     wrapper:
-        "v1.5.0/bio/multiqc"
+        "v1.7.0/bio/multiqc"

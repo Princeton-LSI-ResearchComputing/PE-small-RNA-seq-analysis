@@ -4,6 +4,6 @@ channels:
     - bioconda
     - defaults
 dependencies:
-    - snakemake>=7.8.3
+    - snakemake>=7.8.5
     - snakefmt>=0.6.1
     - drmaa>=0.7.9
