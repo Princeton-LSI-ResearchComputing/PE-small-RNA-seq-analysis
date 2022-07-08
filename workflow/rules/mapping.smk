@@ -1,14 +1,9 @@
-def input_fastp_pe(wildcards):
-    sequence = units.loc[wildcards.sample, wildcards.unit]
-    return [
-        sequence.fq1,
-        sequence.fq2,
-    ]
-
-
 rule fastp_pe:
     input:
-        sample=input_fastp_pe,
+        sample=[
+            "results/fastq/{sample}_{unit}.1.fastq.gz",
+            "results/fastq/{sample}_{unit}.2.fastq.gz",
+        ],
     output:
         trimmed=[
             "results/trimmed/{sample}_{unit}.1.fastq.gz",
@@ -33,8 +28,12 @@ rule join_references:
         reference=config["reference"],
     output:
         "data/references/grch38_p12_targets.fa",
+    log:
+        "results/logs/join_references.log",
+    conda:
+        "../envs/coreutils.yaml"
     shell:
-        "cat {input} > {output}"
+        "cat {input} > {output} &2> {log:q}"
 
 
 rule bowtie2_build_large:
