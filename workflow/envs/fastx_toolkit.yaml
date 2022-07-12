@@ -1,8 +1,7 @@
 # conda environments needed for the workflow should be stored here.
 channels:
-    - conda-forge
-    - bioconda
-    - defaults
+  - conda-forge
+  - bioconda
+  - defaults
 dependencies:
-    - snakemake>=6.6.1
- 
+  - fastx_toolkit>=0.0.14

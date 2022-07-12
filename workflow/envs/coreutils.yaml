@@ -1,0 +1,7 @@
+# conda environments needed for the workflow should be stored here.
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - coreutils>=9.1

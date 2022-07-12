@@ -31,9 +31,22 @@ rule join_references:
     log:
         "results/logs/join_references.log",
     conda:
-        "../envs/coreutils.yaml"
+        "../envs/fastx_toolkit.yaml"
     shell:
-        "cat {input} > {output} &2> {log:q}"
+        "cat {input.reference:q} {input.targets:q} | fasta_formatter > {output:q} &2> {log:q}"
+
+
+rule samtools_fasta_index:
+    input:
+        "data/references/grch38_p12_targets.fa",
+    output:
+        "data/references/grch38_p12_targets.fa.fai",
+    log:
+        "results/logs/faidx/grch38_p12_targets.log",
+    params:
+        extra="",  # optional params string
+    wrapper:
+        "v1.7.0/bio/samtools/faidx"
 
 
 rule bowtie2_build_large:
