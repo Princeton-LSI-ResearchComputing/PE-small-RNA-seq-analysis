@@ -47,9 +47,19 @@ jobs:
       ################################
       # Run Linter against code base #
       ################################
+      - name: Snakemake Linting
+        uses: snakemake/snakemake-github-action@v1
+        with:
+          directory: '.'
+          snakefile: 'workflow/Snakefile'
+          args: '--lint'
+
+
       - name: Lint Code Base
         uses: github/super-linter/slim@v4
         env:
+          VALIDATE_SNAKEMAKE_LINT: false  # Need to install pandas for linting
           VALIDATE_ALL_CODEBASE: false
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

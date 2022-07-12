@@ -57,5 +57,6 @@ report: "report/workflow.rst"
 ##### load rules #####
 
 
+include: "rules/common.smk"
 include: "rules/quality_control.smk"
 include: "rules/mapping.smk"
