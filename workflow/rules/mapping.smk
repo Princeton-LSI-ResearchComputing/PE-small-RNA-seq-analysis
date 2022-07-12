@@ -1,27 +1,3 @@
-rule fastp_pe:
-    input:
-        sample=[
-            "results/fastq/{sample}_{unit}.1.fastq.gz",
-            "results/fastq/{sample}_{unit}.2.fastq.gz",
-        ],
-    output:
-        trimmed=[
-            "results/trimmed/{sample}_{unit}.1.fastq.gz",
-            "results/trimmed/{sample}_{unit}.2.fastq.gz",
-        ],
-        unpaired="results/trimmed/{sample}_{unit}.singletons.fastq.gz",
-        failed="results/trimmed/{sample}_{unit}.failed.fastq.gz",
-        html="results/report/fastp/{sample}_{unit}.html",
-        json="results/report/fastp/{sample}_{unit}.fastp.json",
-    log:
-        "results/logs/fastp/{sample}_{unit}.log",
-    params:
-        adapters="--detect_adapter_for_pe",
-    threads: 2
-    wrapper:
-        "v1.7.0/bio/fastp"
-
-
 rule join_references:
     input:
         targets="data/references/targets.fa",
@@ -33,7 +9,7 @@ rule join_references:
     conda:
         "../envs/fastx_toolkit.yaml"
     shell:
-        "cat {input.reference:q} {input.targets:q} | fasta_formatter > {output:q} &2> {log:q}"
+        "cat {input.reference:q} {input.targets:q} | fasta_formatter -o {output:q} 2> {log:q}"
 
 
 rule samtools_fasta_index:
