@@ -98,7 +98,7 @@ rule multiqc:
             readnum=(1, 2),
         ),
         expand(
-            "results/report/fastp/{unit.sample_name}_{unit.unit_name}.fastp.json",
+            "results/trimmed/{unit.sample_name}_{unit.unit_name}.qc",
             unit=units.itertuples(),
         ),
         expand(

@@ -59,5 +59,6 @@ report: "report/workflow.rst"
 
 
 include: "rules/common.smk"
-include: "rules/quality_control.smk"
+include: "rules/trimming.smk"
 include: "rules/mapping.smk"
+include: "rules/quality_control.smk"
