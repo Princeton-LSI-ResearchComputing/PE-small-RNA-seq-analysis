@@ -90,6 +90,38 @@ rule samtools_idxstats:
         "v1.7.0/bio/samtools/idxstats"
 
 
+rule deeptools_bampefragmentsize:
+    input:
+        bam=expand(
+            "results/mapped_sorted/{unit.sample_name}_{unit.unit_name}.bam",
+            unit=units.itertuples(),
+        ),
+        bai=expand(
+            "results/mapped_sorted/{unit.sample_name}_{unit.unit_name}.bam.bai",
+            unit=units.itertuples(),
+        ),
+    output:
+        table="results/deeptools_bampefragmentsize/fragment_size_table.tsv",
+        raw="results/deeptools_bampefragmentsize/fragment_size_raw_lengths.tsv",
+        summary="results/deeptools_bampefragmentsize/fragment_size_summary.txt",
+    log:
+        "results/logs/deeptools_bampefragmentsize/deeptools_bampefragmentsize.log",
+    threads: 2
+    conda:
+        "../envs/deeptools.yaml"
+    shell:
+        """
+        bamPEFragmentSize \
+            -T "Fragment size of PE RNA-Seq data" \
+            --table {output.table:q} \
+            --outRawFragmentLengths {output.raw:q} \
+            --numberOfProcessors {threads} \
+            -b {input.bam:q} \
+            > {output.summary:q} \
+            2> {log:q}
+        """
+
+
 rule multiqc:
     input:
         expand(
@@ -113,6 +145,8 @@ rule multiqc:
             "results/samtools_idxstats/{unit.sample_name}_{unit.unit_name}.bam.idxstats",
             unit=units.itertuples(),
         ),
+        "results/deeptools_bampefragmentsize/fragment_size_table.tsv",
+        "results/deeptools_bampefragmentsize/fragment_size_raw_lengths.tsv",
     output:
         "results/qc/multiqc.html",
     params:
