@@ -34,7 +34,7 @@ rule fastqc:
 
 rule samtools_stats:
     input:
-        bam="results/mapped/{sample}_{unit}.bam",
+        bam="results/mapped_sorted/{sample}_{unit}.bam",
     output:
         "results/samtools_stats/{sample}_{unit}.txt",
     params:
@@ -106,7 +106,7 @@ rule deeptools_bampefragmentsize:
         summary="results/deeptools_bampefragmentsize/fragment_size_summary.txt",
     log:
         "results/logs/deeptools_bampefragmentsize/deeptools_bampefragmentsize.log",
-    threads: 2
+    threads: 4
     conda:
         "../envs/deeptools.yaml"
     shell:

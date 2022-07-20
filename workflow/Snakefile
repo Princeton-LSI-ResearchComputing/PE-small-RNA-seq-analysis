@@ -38,7 +38,7 @@ rule all:
             sample=units.sample_name,
             unit=units.unit_name,
         ),
-        "data/references/grch38_p12_targets.fa.fai",
+        "data/references/grch38_pjy142_pjy151_pjy209.fa.fai",
 
 
 ##### setup container #####
@@ -59,6 +59,7 @@ report: "report/workflow.rst"
 
 
 include: "rules/common.smk"
+include: "rules/genome.smk"
 include: "rules/trimming.smk"
 include: "rules/mapping.smk"
 include: "rules/quality_control.smk"
