@@ -66,6 +66,25 @@ snakemake --cluster-config cluster_config.cetus.yaml \
           --use-conda -w 60 -rp -j 1000
 ```
 
+## Generating the R report
+
+Currently, the R report has to be run separately.
+
+1. Run the workflow as above
+2. Load the Rproject `adamson-smallRNA.Rproj` in RStudio
+3. Load `exogenous-rna-profiles.Rmd`, run all cells, and save to create the `exogenous_targets_paired_read_summary.tsv` as well as the report `exogenous-rna-profiles.nb.html`
+
+### R packages
+
+1. If needed, install the `renv` package
+    ```r
+    install.packages("renv")
+    ```
+2. Load required packages
+    ```r
+    renv::activate()
+    ```
+
 ## Advanced
 
 The following recipe provides established best practices for running and extending this workflow in a reproducible way.

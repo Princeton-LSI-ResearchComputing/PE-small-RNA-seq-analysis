@@ -1,0 +1,105 @@
+---
+title: "Adamson smallRNA"
+output: html_notebook
+---
+
+```{r message=FALSE, libraries}
+# install.packages("renv")
+# Use renv::restore() to install required packages
+
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(cowplot)
+```
+
+
+Get list of samples
+```{r}
+samples <- str_remove(list.files("results/samtools_idxstats/"), ".bam.idxstats")
+samples
+```
+
+
+```{r}
+idxstats <- tibble(sample=samples, grch38_mapped_reads=NaN)
+for (sample in samples) {
+
+  # Read `idxstats` for normalization
+  stats <- read_tsv(sprintf("results/samtools_idxstats/%s.bam.idxstats", sample), 
+                    col_names = c("sequence_name", "sequence_length", "mapped_reads", "unmapped_reads"),
+                    col_types = "ciii")
+  grch38_mapped_reads <- stats %>% filter(!sequence_name %in% c("PJY142", "PJY151", "PJY209", "*")) %>% select(mapped_reads) %>% sum()
+  idxstats <- rows_update(idxstats, tibble(sample=sample, grch38_mapped_reads=grch38_mapped_reads), by="sample")
+}
+idxstats
+```
+
+```{r}
+
+```
+
+Read `bedpe` file
+
+```{r}
+bedpe_data <- tibble()
+for (sample in samples) {
+  data <- 
+    readr::read_tsv(sprintf("results/exogenous_targets_bedpe/%s_exogenous_targets.bedpe", sample),
+                    col_names = c("chrom1", "chrom1Start", "chrom1End", "chrom2", "chrom2Start", "chrom2End", "name", "score", "strand1", "strand2"),
+                    col_types = "ciiciicicc")
+  bedpe_data <- tibble(rbind(bedpe_data, cbind(filter(idxstats, sample==UQ(sample)), data)))
+}
+bedpe_data
+```
+
+Categorize fragments
+
+```{r}
+summarized_data <- bedpe_data %>% 
+  filter(chrom1Start == 0) %>% 
+  count(sample, grch38_mapped_reads, chrom1, chrom1Start, chrom2End, name = "count") %>%
+  mutate(normalizedCount = count / (grch38_mapped_reads / 10^9))
+summarized_data
+```
+
+Save summarized data to table
+
+```{r}
+write_tsv(summarized_data, file = "exogenous_targets_paired_read_summary.tsv")
+```
+
+
+Histogram of fragments starting at position zero (0)
+
+```{r, fig.width=12}
+pjy142_hist <- 
+  ggplot(summarized_data %>% filter(chrom1 == "PJY142", chrom1Start == 0),
+       aes(x=chrom2End, y=normalizedCount, fill=sample)) + 
+  geom_bar(stat="identity") +
+  theme(legend.position = "none") +
+  facet_grid(vars(sample))
+plot_grid(pjy142_hist, pjy142_hist + scale_y_log10())
+```
+
+```{r, fig.width=12}
+pjy151_hist <-
+  ggplot(summarized_data %>% filter(chrom1 == "PJY151", chrom1Start == 0),
+       aes(x=chrom2End, y=normalizedCount, fill=sample)) + 
+  geom_bar(stat="identity") +
+  theme(legend.position = "none") +
+  facet_grid(vars(sample))
+plot_grid(pjy151_hist, pjy151_hist + scale_y_log10())
+```
+
+
+```{r, fig.width=12}
+pjy209_hist <-
+  ggplot(summarized_data %>% filter(chrom1 == "PJY209", chrom1Start == 0),
+       aes(x=chrom2End, y=normalized, fill=sample)) + 
+  geom_bar(stat="identity") +
+  theme(legend.position="none") + 
+  facet_grid(vars(sample))
+plot_grid(pjy151_hist, pjy151_hist + scale_y_log10())
+```
