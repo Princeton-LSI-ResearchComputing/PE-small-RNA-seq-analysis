@@ -16,3 +16,6 @@ indent_size = 2
 
 [*.tsv]
 indent_style = tab
+
+[*.{md,Rmd}]
+indent_size = unset
