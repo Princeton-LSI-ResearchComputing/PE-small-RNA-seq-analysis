@@ -1,87 +1,212 @@
 ---
 title: "Adamson smallRNA"
-output: html_notebook
+output:
+  html_notebook:
+    toc: true
 ---
 
-```{r message=FALSE, libraries}
-# install.packages("renv")
-# Use renv::restore() to install required packages
+## Read data
 
+This project uses [`renv`](https://rstudio.github.io/renv/articles/renv.html)
+to keep track of installed packages. Install `renv` if not installed and load
+dependencies with `renv::restore()`.
+
+```r
+install.packages("renv")
+renv::restore()
+```
+
+```{r message=FALSE}
 library(readr)
 library(dplyr)
+library(tidyr)
+library(pheatmap)
+library(tibble)
 library(ggplot2)
 library(stringr)
 library(cowplot)
+library(markdown)
 ```
 
 
 Get list of samples
+
 ```{r}
 samples <- str_remove(list.files("results/samtools_idxstats/"), ".bam.idxstats")
 samples
 ```
 
+Read idxstats to get grch38 coverage for normalization
 
 ```{r}
 idxstats <- tibble(sample = samples, grch38_mapped_reads = NaN)
 for (sample in samples) {
 
   # Read `idxstats` for normalization
-  stats <- read_tsv(sprintf("results/samtools_idxstats/%s.bam.idxstats", sample),
-    col_names = c("sequence_name", "sequence_length", "mapped_reads", "unmapped_reads"),
-    col_types = "ciii"
+  stats <- read_tsv(sprintf(
+    "results/samtools_idxstats/%s.bam.idxstats",
+    sample
+  ),
+  col_names = c(
+    "sequence_name", "sequence_length",
+    "mapped_reads", "unmapped_reads"
+  ),
+  col_types = "ciii"
   )
   grch38_mapped_reads <- stats %>%
     filter(!sequence_name %in% c("PJY142", "PJY151", "PJY209", "*")) %>%
     select(mapped_reads) %>%
     sum()
-  idxstats <- rows_update(idxstats, tibble(sample = sample, grch38_mapped_reads = grch38_mapped_reads), by = "sample")
+  idxstats <- rows_update(idxstats,
+    tibble(
+      sample = sample,
+      grch38_mapped_reads = grch38_mapped_reads
+    ),
+    by = "sample"
+  )
 }
 idxstats
 ```
 
-```{r}
-
-```
-
-Read `bedpe` file
+Read `bedpe` files to get exogenous target coverage
 
 ```{r}
 bedpe_data <- tibble()
 for (sample in samples) {
   data <-
-    readr::read_tsv(sprintf("results/exogenous_targets_bedpe/%s_exogenous_targets.bedpe", sample),
-      col_names = c("chrom1", "chrom1Start", "chrom1End", "chrom2", "chrom2Start", "chrom2End", "name", "score", "strand1", "strand2"),
-      col_types = "ciiciicicc"
+    readr::read_tsv(sprintf(
+      "results/exogenous_targets_bedpe/%s_exogenous_targets.bedpe", sample
+    ),
+    col_names = c(
+      "chrom1", "chrom1Start", "chrom1End",
+      "chrom2", "chrom2Start", "chrom2End",
+      "name", "score", "strand1", "strand2"
+    ),
+    col_types = "ciiciicicc"
     )
-  bedpe_data <- tibble(rbind(bedpe_data, cbind(filter(idxstats, sample == UQ(sample)), data)))
+  bedpe_data <- tibble(rbind(
+    bedpe_data,
+    cbind(
+      filter(idxstats, sample == UQ(sample)),
+      data
+    )
+  ))
 }
 bedpe_data
 ```
 
-Categorize fragments
+Summarize data
+
+* Count only pairs that start at position 0
+* Sum for each "end" position
+* Normalize using reads mapped to human genome (grch38)
 
 ```{r}
 summarized_data <- bedpe_data %>%
   filter(chrom1Start == 0) %>%
-  count(sample, grch38_mapped_reads, chrom1, chrom1Start, chrom2End, name = "count") %>%
+  count(sample, grch38_mapped_reads, chrom1, chrom1Start, chrom2End,
+    name = "count"
+  ) %>%
   mutate(normalizedCount = count / (grch38_mapped_reads / 10^9))
 summarized_data
 ```
 
-Save summarized data to table
+Reorganize data for correlation analysis
+
+```{r}
+corr_data <- summarized_data %>%
+  select(-grch38_mapped_reads, -count) %>%
+  pivot_wider(names_from = sample, values_from = normalizedCount) %>%
+  arrange(chrom1, chrom1Start, chrom2End)
+corr_data
+```
+
+Save summarized data tables to text files
 
 ```{r}
 write_tsv(summarized_data, file = "exogenous_targets_paired_read_summary.tsv")
+write_tsv(corr_data, file = "exogenous_targets_normalized_counts.tsv")
 ```
 
 
-Histogram of fragments starting at position zero (0)
+## Replicate correlation
 
+```{r fig.height=6, fig.width=6}
+p <- ggplot(
+  corr_data,
+  aes(
+    x = PJY142_PJY99_rep2,
+    y = PJY142_PJY99_rep3,
+  )
+) +
+  scale_x_log10() +
+  scale_y_log10() +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "gray") +
+  ggtitle("PJY142_PJY99")
+p
+```
+
+```{r fig.height=6, fig.width=6}
+p <- ggplot(
+  corr_data,
+  aes(
+    x = PJY142_PJY209_rep2,
+    y = PJY142_PJY209_rep3,
+  )
+) +
+  scale_x_log10() +
+  scale_y_log10() +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "gray") +
+  ggtitle("PJY142_PJY209")
+p
+```
+
+```{r fig.height=6, fig.width=6}
+p <- ggplot(
+  corr_data,
+  aes(
+    x = PJY151_PJY99_rep2,
+    y = PJY151_PJY99_rep3,
+  )
+) +
+  scale_x_log10() +
+  scale_y_log10() +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "gray") +
+  ggtitle("PJY151_PJY99")
+p
+```
+
+```{r fig.height=6, fig.width=6}
+p <- ggplot(
+  corr_data,
+  aes(
+    x = PJY151_PJY209_rep2,
+    y = PJY151_PJY209_rep3,
+  )
+) +
+  scale_x_log10() +
+  scale_y_log10() +
+  geom_point() +
+  geom_abline(slope = 1, intercept = 0, color = "gray") +
+  ggtitle("PJY151_PJY209")
+p
+```
+
+
+---
+
+## Exogenous species comparison
+
+### PJY142
+
+Histogram of fragments starting at position zero (0)
 ```{r, fig.width=12}
 pjy142_hist <-
   ggplot(
-    summarized_data %>% filter(chrom1 == "PJY142", chrom1Start == 0),
+    summarized_data %>% filter(chrom1 == "PJY142"),
     aes(x = chrom2End, y = normalizedCount, fill = sample)
   ) +
   geom_bar(stat = "identity") +
@@ -90,10 +215,26 @@ pjy142_hist <-
 plot_grid(pjy142_hist, pjy142_hist + scale_y_log10())
 ```
 
+Heatmap PJY142
+```{r, fig.width=6, fig.height=12}
+pheatmap(corr_data %>%
+  filter(chrom1 == "PJY142") %>%
+  unite(seqid, chrom1, chrom1Start, chrom2End) %>%
+  column_to_rownames("seqid") %>%
+  log1p(),
+# drop_na(),
+cluster_rows = FALSE
+)
+```
+
+
+### PJY151
+
+Histogram of fragments starting at position zero (0)
 ```{r, fig.width=12}
 pjy151_hist <-
   ggplot(
-    summarized_data %>% filter(chrom1 == "PJY151", chrom1Start == 0),
+    summarized_data %>% filter(chrom1 == "PJY151"),
     aes(x = chrom2End, y = normalizedCount, fill = sample)
   ) +
   geom_bar(stat = "identity") +
@@ -102,7 +243,21 @@ pjy151_hist <-
 plot_grid(pjy151_hist, pjy151_hist + scale_y_log10())
 ```
 
+Heatmap PJY151
+```{r, fig.width=6, fig.height=15}
+pheatmap(corr_data %>%
+  filter(chrom1 == "PJY151") %>%
+  unite(seqid, chrom1, chrom1Start, chrom2End) %>%
+  column_to_rownames("seqid") %>%
+  log1p(),
+# drop_na(),
+cluster_rows = FALSE
+)
+```
 
+### PJY99 / PJY209
+
+Histogram of fragments starting at position zero (0)
 ```{r, fig.width=12}
 pjy209_hist <-
   ggplot(
@@ -113,4 +268,16 @@ pjy209_hist <-
   theme(legend.position = "none") +
   facet_grid(vars(sample))
 plot_grid(pjy151_hist, pjy151_hist + scale_y_log10())
+```
+
+Heatmap PJY209
+```{r, fig.width=6, fig.height=20}
+pheatmap(corr_data %>%
+  filter(chrom1 == "PJY209") %>%
+  unite(seqid, chrom1, chrom1Start, chrom2End) %>%
+  column_to_rownames("seqid") %>%
+  log1p(),
+# drop_na(),
+cluster_rows = FALSE
+)
 ```
