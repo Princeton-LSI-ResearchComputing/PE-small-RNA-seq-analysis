@@ -1,5 +1,5 @@
 ---
-title: "Adamson smallRNA"
+title: "Adamson smallRNA - exogenous RNA"
 output:
   html_notebook:
     toc: true
@@ -87,7 +87,7 @@ for (sample in samples) {
   bedpe_data <- tibble(rbind(
     bedpe_data,
     cbind(
-      filter(idxstats, sample == UQ(sample)),
+      filter(idxstats, sample == !!sample),
       data
     )
   ))
@@ -277,7 +277,6 @@ pheatmap(corr_data %>%
   unite(seqid, chrom1, chrom1Start, chrom2End) %>%
   column_to_rownames("seqid") %>%
   log1p(),
-# drop_na(),
 cluster_rows = FALSE
 )
 ```
