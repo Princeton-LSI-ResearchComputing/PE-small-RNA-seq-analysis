@@ -1,0 +1,128 @@
+---
+title: "Adamson smallRNA - exogenous RNA"
+output:
+  html_notebook:
+    toc: true
+---
+
+## Read data
+
+This project uses [`renv`](https://rstudio.github.io/renv/articles/renv.html)
+to keep track of installed packages. Install `renv` if not installed and load
+dependencies with `renv::restore()`.
+
+```r
+install.packages("renv")
+renv::restore()
+```
+
+```{r message=FALSE}
+library(markdown)
+library(stringr)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(ggplot2)
+```
+
+
+Get list of samples
+
+```{r}
+samples <- str_remove(list.files("results/samtools_idxstats/"), ".bam.idxstats")
+samples
+```
+
+Read idxstats to get grch38 coverage for normalization
+
+```{r}
+idxstats <- tibble(sample = samples, grch38_mapped_reads = NaN)
+for (sample in samples) {
+
+  # Read `idxstats` for normalization
+  stats <- read_tsv(sprintf(
+    "results/samtools_idxstats/%s.bam.idxstats",
+    sample
+  ),
+  col_names = c(
+    "sequence_name", "sequence_length",
+    "mapped_reads", "unmapped_reads"
+  ),
+  col_types = "ciii"
+  )
+  grch38_mapped_reads <- stats %>%
+    filter(!sequence_name %in% c("PJY142", "PJY151", "PJY209", "*")) %>%
+    select(mapped_reads) %>%
+    sum()
+  idxstats <- rows_update(idxstats,
+    tibble(
+      sample = sample,
+      grch38_mapped_reads = grch38_mapped_reads
+    ),
+    by = "sample"
+  )
+}
+idxstats
+```
+
+Read gene biotype summary stats
+
+```{r}
+gene_biotype_summary <- tibble(gene_biotype = character())
+for (sample in samples) {
+  stats <- read_tsv(sprintf(
+    "results/homo_sapiens_gene_biotype_summary/%s.gene_biotype.summary",
+    sample
+  ),
+  col_names = c(
+    "gene_biotype", sample
+  ),
+  col_types = "ci"
+  )
+  gene_biotype_summary <-
+    gene_biotype_summary %>% full_join(stats, by = "gene_biotype")
+}
+gene_biotype_summary
+```
+
+
+Tidy data for easier manipulation and plotting
+
+```{r}
+gene_biotype_summary_tidy <- gene_biotype_summary %>%
+  pivot_longer(-gene_biotype) %>%
+  rename(sample = name, count = value)  %>%
+  group_by(sample) %>%
+  mutate(freq_in_sample = round(count / sum(count), 3)) %>%
+  arrange(sample, desc(count))
+gene_biotype_summary_tidy
+```
+
+
+Plot any biotype with at least 1% frequency in a sample
+
+```{r}
+ggplot(
+  gene_biotype_summary_tidy %>%
+    group_by(gene_biotype) %>%
+    filter(any(freq_in_sample > 0.01)),
+       aes(x = reorder(gene_biotype, -count),
+           y = freq_in_sample,
+           fill = sample)) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+```
+
+
+
+Save summarized data tables to text files
+
+```{r}
+write_tsv(gene_biotype_summary,
+          file = "all_sample_gene_biotype_summary.tsv")
+write_tsv(gene_biotype_summary_tidy,
+          file = "all_sample_gene_biotype_summary_tidy.tsv")
+```
+
+
