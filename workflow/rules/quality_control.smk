@@ -130,6 +130,10 @@ rule multiqc:
             readnum=(1, 2),
         ),
         expand(
+            "results/logs/bowtie2/{unit.sample_name}_{unit.unit_name}.log",
+            unit=units.itertuples(),
+        ),
+        expand(
             "results/trimmed/{unit.sample_name}_{unit.unit_name}.qc",
             unit=units.itertuples(),
         ),

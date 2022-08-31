@@ -1,3 +1,4 @@
+---
 name: adamson-smallRNA
 channels:
     - conda-forge
