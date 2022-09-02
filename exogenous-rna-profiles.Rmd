@@ -26,6 +26,7 @@ library(ggplot2)
 library(stringr)
 library(cowplot)
 library(markdown)
+library(RColorBrewer)
 ```
 
 
@@ -107,9 +108,11 @@ summarized_data <- bedpe_data %>%
   count(sample, grch38_mapped_reads, chrom1, chrom1Start, chrom2End,
     name = "count"
   ) %>%
-  mutate(normalizedCount = count / (grch38_mapped_reads / 10^9))
+  mutate(normalizedCount = (count * 10^6) / grch38_mapped_reads)
 summarized_data
 ```
+
+
 
 Reorganize data for correlation analysis
 
@@ -204,26 +207,44 @@ p
 
 Histogram of fragments starting at position zero (0)
 ```{r, fig.width=12}
+pjy142_length <- 113
 pjy142_hist <-
   ggplot(
-    summarized_data %>% filter(chrom1 == "PJY142"),
+    summarized_data %>%
+      filter(chrom1 == "PJY142") %>%
+      complete(
+        nesting(sample, grch38_mapped_reads, chrom1, chrom1Start),
+        chrom2End = seq(0, pjy142_length),
+        fill = list(count = 0, normalizedCount = 0)
+      ),
     aes(x = chrom2End, y = normalizedCount, fill = sample)
   ) +
   geom_bar(stat = "identity") +
   theme(legend.position = "none") +
   facet_grid(vars(sample))
-plot_grid(pjy142_hist, pjy142_hist + scale_y_log10())
+plot_grid(pjy142_hist, pjy142_hist + scale_y_continuous(trans = "log1p"))
+```
+
+Heatmap colors
+```{r}
+blue_colors <- colorRampPalette(brewer.pal(9, "Blues"))(100)
 ```
 
 Heatmap PJY142
-```{r, fig.width=6, fig.height=12}
+```{r, fig.width=6, fig.height=14}
 pheatmap(corr_data %>%
   filter(chrom1 == "PJY142") %>%
+  complete(
+    nesting(chrom1, chrom1Start),
+    chrom2End = seq(0, pjy142_length),
+    fill = list(count = 0, normalizedCount = 0)
+  ) %>%
   unite(seqid, chrom1, chrom1Start, chrom2End) %>%
   column_to_rownames("seqid") %>%
   log1p(),
-# drop_na(),
-cluster_rows = FALSE
+cluster_rows = FALSE,
+color = blue_colors,
+fontsize_row = 6,
 )
 ```
 
@@ -232,51 +253,126 @@ cluster_rows = FALSE
 
 Histogram of fragments starting at position zero (0)
 ```{r, fig.width=12}
+pjy151_length <- 113
 pjy151_hist <-
   ggplot(
-    summarized_data %>% filter(chrom1 == "PJY151"),
+    summarized_data %>%
+      filter(chrom1 == "PJY151") %>%
+      complete(
+        nesting(sample, grch38_mapped_reads, chrom1, chrom1Start),
+        chrom2End = seq(0, pjy151_length),
+        fill = list(count = 0, normalizedCount = 0)
+      ),
     aes(x = chrom2End, y = normalizedCount, fill = sample)
   ) +
   geom_bar(stat = "identity") +
   theme(legend.position = "none") +
   facet_grid(vars(sample))
-plot_grid(pjy151_hist, pjy151_hist + scale_y_log10())
+plot_grid(pjy151_hist, pjy151_hist + scale_y_continuous(trans = "log1p"))
 ```
 
 Heatmap PJY151
 ```{r, fig.width=6, fig.height=15}
 pheatmap(corr_data %>%
   filter(chrom1 == "PJY151") %>%
+  complete(
+    nesting(chrom1, chrom1Start),
+    chrom2End = seq(0, pjy151_length),
+    fill = list(count = 0, normalizedCount = 0)
+  ) %>%
   unite(seqid, chrom1, chrom1Start, chrom2End) %>%
   column_to_rownames("seqid") %>%
   log1p(),
-# drop_na(),
-cluster_rows = FALSE
+cluster_rows = FALSE,
+color = blue_colors,
+fontsize_row = 6
 )
 ```
 
-### PJY99 / PJY209
+### PJY99
 
 Histogram of fragments starting at position zero (0)
 ```{r, fig.width=12}
-pjy209_hist <-
+pjy99_length <- 138
+pjy99_hist <-
   ggplot(
-    summarized_data %>% filter(chrom1 == "PJY209", chrom1Start == 0),
-    aes(x = chrom2End, y = normalized, fill = sample)
+    summarized_data %>%
+      filter(chrom1 == "PJY209", chrom1Start == 0) %>%
+      filter(grepl("PJY99", sample)) %>%
+      filter(chrom2End <= pjy99_length) %>%
+      complete(
+        nesting(sample, grch38_mapped_reads, chrom1, chrom1Start),
+        chrom2End = seq(0, pjy99_length),
+        fill = list(count = 0, normalizedCount = 0)
+      ),
+    aes(x = chrom2End, y = normalizedCount, fill = sample)
   ) +
   geom_bar(stat = "identity") +
   theme(legend.position = "none") +
   facet_grid(vars(sample))
-plot_grid(pjy151_hist, pjy151_hist + scale_y_log10())
+plot_grid(pjy99_hist, pjy99_hist + scale_y_continuous(trans = "log1p"))
+```
+
+
+Heatmap PJY99
+```{r, fig.width=6, fig.height=20}
+pheatmap(corr_data %>%
+  filter(chrom1 == "PJY209", chrom1Start == 0) %>%
+  select(!contains("PJY209")) %>%
+  filter(chrom2End <= pjy99_length) %>%
+  complete(
+    nesting(chrom1, chrom1Start),
+    chrom2End = seq(0, pjy99_length),
+    fill = list(count = 0, normalizedCount = 0)
+  ) %>%
+  unite(seqid, chrom1, chrom1Start, chrom2End) %>%
+  column_to_rownames("seqid") %>%
+  log1p(),
+cluster_rows = FALSE,
+color = blue_colors,
+)
+```
+
+
+
+### PJY209
+
+Histogram of fragments starting at position zero (0)
+```{r, fig.width=12}
+pjy209_length <- 174
+pjy209_hist <-
+  ggplot(
+    summarized_data %>%
+      filter(chrom1 == "PJY209", chrom1Start == 0) %>%
+      filter(grepl("PJY209", sample)) %>%
+      complete(
+        nesting(sample, grch38_mapped_reads, chrom1, chrom1Start),
+        chrom2End = seq(0, pjy209_length),
+        fill = list(count = 0, normalizedCount = 0)
+      ),
+    aes(x = chrom2End, y = normalizedCount, fill = sample)
+  ) +
+  geom_bar(stat = "identity") +
+  theme(legend.position = "none") +
+  facet_grid(vars(sample))
+plot_grid(pjy209_hist, pjy209_hist + scale_y_continuous(trans = "log1p"))
 ```
 
 Heatmap PJY209
 ```{r, fig.width=6, fig.height=20}
 pheatmap(corr_data %>%
   filter(chrom1 == "PJY209") %>%
+  select(!contains("PJY99")) %>%
+  complete(
+    nesting(chrom1, chrom1Start),
+    chrom2End = seq(0, pjy209_length),
+    fill = list(count = 0, normalizedCount = 0)
+  ) %>%
   unite(seqid, chrom1, chrom1Start, chrom2End) %>%
   column_to_rownames("seqid") %>%
   log1p(),
-cluster_rows = FALSE
+cluster_rows = FALSE,
+color = blue_colors,
+fontsize_row = 6
 )
 ```
