@@ -30,6 +30,8 @@ library(RColorBrewer)
 ```
 
 
+## Read data
+
 Get list of samples
 
 ```{r}
@@ -96,7 +98,7 @@ for (sample in samples) {
 bedpe_data
 ```
 
-Summarize data
+## Summarize data
 
 * Count only pairs that start at position 0
 * Sum for each "end" position
@@ -203,6 +205,63 @@ p
 
 ## Exogenous species comparison
 
+Heatmap functions
+```{r}
+blue_colors <- colorRampPalette(brewer.pal(9, "Blues"))(200)
+diverging_colors <- colorRampPalette(brewer.pal(9, "RdBu"))(200)
+
+sgrna_heatmap <- function(data, color = blue_colors, ...) {
+  hmap <- pheatmap(
+    data,
+    cluster_rows = FALSE,
+    color = color,
+    fontsize_row = 6,
+    ...
+  )
+  return(hmap)
+}
+
+# corr_data %>% filter %>% fill %>% scale %>% collapse
+# corr_data %>% filter %>% fill %>% collapse
+
+filter_and_fill_data <- function(data, chrom, length) {
+  filtered_data <- data %>%
+    filter(chrom1 == chrom) %>%
+    complete(
+      nesting(chrom1, chrom1Start),
+      chrom2End = seq(0, length),
+      fill = list(count = 0, normalizedCount = 0)
+    ) %>%
+    unite(seqid, chrom1, chrom1Start, chrom2End) %>%
+    column_to_rownames("seqid")
+  return(filtered_data)
+}
+
+
+# Collapse Replicates
+collapse_data <- function(data) {
+  collapsed_data <- data %>%
+    mutate(PJY142_PJY209 = rowMeans(select(., starts_with("PJY142_PJY209")))) %>%
+    mutate(PJY142_PJY99 = rowMeans(select(., starts_with("PJY142_PJY99")))) %>%
+    mutate(PJY151_PJY209 = rowMeans(select(., starts_with("PJY151_PJY209")))) %>%
+    mutate(PJY151_PJY99 = rowMeans(select(., starts_with("PJY151_PJY99")))) %>%
+    select(-contains("_rep"))
+  return(collapsed_data)
+}
+
+# Scale
+scale_data <- function(data, center = TRUE, scale = TRUE) {
+  scaled_data <- data %>%
+    mutate_at(
+      vars(starts_with("PJY")),
+      ~ (. / sum(., na.rm = TRUE))
+      # ~ scale(., center = center, scale = scale)
+    )
+  return(scaled_data)
+}
+```
+
+
 ### PJY142
 
 Histogram of fragments starting at position zero (0)
@@ -225,28 +284,44 @@ pjy142_hist <-
 plot_grid(pjy142_hist, pjy142_hist + scale_y_continuous(trans = "log1p"))
 ```
 
-Heatmap colors
-```{r}
-blue_colors <- colorRampPalette(brewer.pal(9, "Blues"))(100)
+#### Heatmaps PJY142
+
+```{r, fig.width=12, fig.height=14}
+pjy142_hmap <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY142", pjy142_length) %>%
+    log1p(),
+  silent = TRUE
+)
+pjy142_hmap_collapsed <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY142", pjy142_length) %>%
+    collapse_data() %>%
+    log1p(),
+  silent = TRUE
+)
+plot_grid(pjy142_hmap$gtable, pjy142_hmap_collapsed$gtable)
 ```
 
-Heatmap PJY142
-```{r, fig.width=6, fig.height=14}
-pheatmap(corr_data %>%
-  filter(chrom1 == "PJY142") %>%
-  complete(
-    nesting(chrom1, chrom1Start),
-    chrom2End = seq(0, pjy142_length),
-    fill = list(count = 0, normalizedCount = 0)
-  ) %>%
-  unite(seqid, chrom1, chrom1Start, chrom2End) %>%
-  column_to_rownames("seqid") %>%
-  log1p(),
-cluster_rows = FALSE,
-color = blue_colors,
-fontsize_row = 6,
+Heatmaps with columns scaled by number of reads mapped to the region plotted
+```{r, fig.width=12, fig.height=14}
+pjy142_hmap_scaled <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY142", pjy142_length) %>%
+    scale_data(),
+  silent = TRUE
 )
+pjy142_hmap_scaled_collapsed <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY142", pjy142_length) %>%
+    scale_data() %>%
+    collapse_data(),
+  silent = TRUE
+)
+plot_grid(pjy142_hmap_scaled$gtable, pjy142_hmap_scaled_collapsed$gtable)
 ```
+
+
 
 
 ### PJY151
@@ -272,22 +347,43 @@ plot_grid(pjy151_hist, pjy151_hist + scale_y_continuous(trans = "log1p"))
 ```
 
 Heatmap PJY151
-```{r, fig.width=6, fig.height=15}
-pheatmap(corr_data %>%
-  filter(chrom1 == "PJY151") %>%
-  complete(
-    nesting(chrom1, chrom1Start),
-    chrom2End = seq(0, pjy151_length),
-    fill = list(count = 0, normalizedCount = 0)
-  ) %>%
-  unite(seqid, chrom1, chrom1Start, chrom2End) %>%
-  column_to_rownames("seqid") %>%
-  log1p(),
-cluster_rows = FALSE,
-color = blue_colors,
-fontsize_row = 6
+```{r, fig.width=12, fig.height=14}
+pjy151_hmap <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY151", pjy151_length) %>%
+    log1p(),
+  silent = TRUE
 )
+pjy151_hmap_collapsed <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY151", pjy151_length) %>%
+    collapse_data() %>%
+    log1p(),
+  silent = TRUE
+)
+plot_grid(pjy151_hmap$gtable, pjy151_hmap_collapsed$gtable)
 ```
+
+
+
+
+```{r, fig.width=12, fig.height=14}
+pjy151_hmap_scaled <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY151", pjy151_length) %>%
+    scale_data(),
+  silent = TRUE
+)
+pjy151_hmap_scaled_collapsed <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY151", pjy151_length) %>%
+    scale_data() %>%
+    collapse_data(),
+  silent = TRUE
+)
+plot_grid(pjy151_hmap_scaled$gtable, pjy151_hmap_scaled_collapsed$gtable)
+```
+
 
 ### PJY99
 
@@ -315,24 +411,43 @@ plot_grid(pjy99_hist, pjy99_hist + scale_y_continuous(trans = "log1p"))
 
 
 Heatmap PJY99
-```{r, fig.width=6, fig.height=20}
-pheatmap(corr_data %>%
-  filter(chrom1 == "PJY209", chrom1Start == 0) %>%
-  select(!contains("PJY209")) %>%
-  filter(chrom2End <= pjy99_length) %>%
-  complete(
-    nesting(chrom1, chrom1Start),
-    chrom2End = seq(0, pjy99_length),
-    fill = list(count = 0, normalizedCount = 0)
-  ) %>%
-  unite(seqid, chrom1, chrom1Start, chrom2End) %>%
-  column_to_rownames("seqid") %>%
-  log1p(),
-cluster_rows = FALSE,
-color = blue_colors,
+```{r, fig.width=12, fig.height=14}
+pjy99_hmap <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY209", pjy99_length) %>%
+    select(!contains("PJY209")) %>%
+    log1p(),
+  silent = TRUE
 )
+pjy99_hmap_collapsed <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY209", pjy99_length) %>%
+    collapse_data() %>%
+    select(!contains("PJY209")) %>%
+    log1p(),
+  silent = TRUE
+)
+plot_grid(pjy99_hmap$gtable, pjy99_hmap_collapsed$gtable)
 ```
 
+```{r, fig.width=12, fig.height=16}
+pjy99_hmap_scaled <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY209", pjy99_length) %>%
+    select(!contains("PJY209")) %>%
+    scale_data(),
+  silent = TRUE
+)
+pjy99_hmap_scaled_collapsed <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY209", pjy99_length) %>%
+    scale_data() %>%
+    collapse_data() %>%
+    select(!contains("PJY209")),
+  silent = TRUE
+)
+plot_grid(pjy99_hmap_scaled$gtable, pjy99_hmap_scaled_collapsed$gtable)
+```
 
 
 ### PJY209
@@ -359,20 +474,81 @@ plot_grid(pjy209_hist, pjy209_hist + scale_y_continuous(trans = "log1p"))
 ```
 
 Heatmap PJY209
-```{r, fig.width=6, fig.height=20}
-pheatmap(corr_data %>%
-  filter(chrom1 == "PJY209") %>%
-  select(!contains("PJY99")) %>%
-  complete(
-    nesting(chrom1, chrom1Start),
-    chrom2End = seq(0, pjy209_length),
-    fill = list(count = 0, normalizedCount = 0)
-  ) %>%
-  unite(seqid, chrom1, chrom1Start, chrom2End) %>%
-  column_to_rownames("seqid") %>%
-  log1p(),
-cluster_rows = FALSE,
-color = blue_colors,
-fontsize_row = 6
+```{r, fig.width=12, fig.height=16}
+pjy209_hmap <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY209", pjy209_length) %>%
+    select(contains("PJY209")) %>%
+    log1p(),
+  silent = TRUE
 )
+pjy209_hmap_collapsed <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY209", pjy209_length) %>%
+    collapse_data() %>%
+    select(contains("PJY209")) %>%
+    log1p(),
+  silent = TRUE
+)
+plot_grid(pjy209_hmap$gtable, pjy209_hmap_collapsed$gtable)
+```
+
+```{r, fig.width=12, fig.height=16}
+pjy209_hmap_scaled <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY209", pjy209_length) %>%
+    select(contains("PJY209")) %>%
+    scale_data(),
+  silent = TRUE,
+)
+pjy209_hmap_scaled_collapsed <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY209", pjy209_length) %>%
+    scale_data() %>%
+    collapse_data() %>%
+    select(contains("PJY209")),
+  silent = TRUE,
+)
+plot_grid(pjy209_hmap_scaled$gtable, pjy209_hmap_scaled_collapsed$gtable)
+```
+
+```{r}
+pjy209_scaled_diff <-
+  corr_data %>%
+  filter_and_fill_data("PJY209", pjy209_length) %>%
+  scale_data() %>%
+  collapse_data() %>%
+  select(contains("PJY209")) %>%
+  mutate(PJY_DIFF = PJY151_PJY209 - PJY142_PJY209)
+pjy209_scaled_diff
+```
+
+#### Heatmap of Difference
+
+Plot the difference between the scaled reads for PJY151 vs PJY142
+
+```{r, fig.width=12, fig.height=16}
+pjy209_hmap_comp <- sgrna_heatmap(
+  corr_data %>%
+    filter_and_fill_data("PJY209", pjy209_length) %>%
+    scale_data() %>%
+    collapse_data() %>%
+    select(contains("PJY209")),
+  silent = TRUE,
+  treeheight_col = 0,
+  show_colnames = FALSE,
+  main = "Scaled PJY151 and PJY142"
+)
+
+pjy209_hmap_diff <- sgrna_heatmap(
+  pjy209_scaled_diff %>% select("PJY_DIFF"),
+  cluster_cols = FALSE,
+  silent = TRUE,
+  color = diverging_colors,
+  scale = "column",
+  show_colnames = FALSE,
+  main = "PJY151 vs PJY142"
+)
+
+plot_grid(pjy209_hmap_comp$gtable, pjy209_hmap_diff$gtable, rel_widths = c(2, 1))
 ```
