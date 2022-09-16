@@ -92,7 +92,7 @@ Tidy data for easier manipulation and plotting
 ```{r}
 gene_biotype_summary_tidy <- gene_biotype_summary %>%
   pivot_longer(-gene_biotype) %>%
-  rename(sample = name, count = value)  %>%
+  rename(sample = name, count = value) %>%
   group_by(sample) %>%
   mutate(freq_in_sample = round(count / sum(count), 3)) %>%
   arrange(sample, desc(count))
@@ -107,22 +107,45 @@ ggplot(
   gene_biotype_summary_tidy %>%
     group_by(gene_biotype) %>%
     filter(any(freq_in_sample > 0.01)),
-       aes(x = reorder(gene_biotype, -count),
-           y = freq_in_sample,
-           fill = sample)) +
+  aes(
+    x = reorder(gene_biotype, -count),
+    y = freq_in_sample,
+    fill = sample
+  )
+) +
   geom_bar(stat = "identity", position = position_dodge()) +
   theme(axis.text.x = element_text(angle = -45, hjust = 0))
 ```
 
+Plot any biotype with at least 1% frequency in a sample
 
+```{r}
+ggplot(
+  gene_biotype_summary_tidy %>%
+    mutate(gene_biotype = reorder(
+      gene_biotype, count, sum,
+      decreasing = FALSE
+    )) %>%
+    group_by(gene_biotype) %>%
+    filter(any(freq_in_sample > 0.01)) %>%
+    droplevels(),
+  aes(
+    x = sample,
+    y = count,
+    fill = gene_biotype
+  )
+) +
+  geom_bar(stat = "identity", position = "fill") +
+  theme(axis.text.x = element_text(angle = -45, hjust = 0))
+```
 
 Save summarized data tables to text files
 
 ```{r}
 write_tsv(gene_biotype_summary,
-          file = "all_sample_gene_biotype_summary.tsv")
+  file = "all_sample_gene_biotype_summary.tsv"
+)
 write_tsv(gene_biotype_summary_tidy,
-          file = "all_sample_gene_biotype_summary_tidy.tsv")
+  file = "all_sample_gene_biotype_summary_tidy.tsv"
+)
 ```
-
-
