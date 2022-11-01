@@ -21,12 +21,11 @@ rule fetch_grch38:
 
 rule join_references:
     input:
-        pjy142="data/references/pjy142.fa",
-        pjy151="data/references/pjy151.fa",
-        pjy209="data/references/pjy209.fa",
+        pjy103="data/references/PJY103.fa",
+        pjy300="data/references/PJY300.fa",
         grch38="data/references/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz",
     output:
-        "data/references/grch38_pjy142_pjy151_pjy209.fa",
+        "data/references/grch38_pjy103_pjy300.fa",
     log:
         "results/logs/join_references.log",
     conda:
@@ -34,7 +33,7 @@ rule join_references:
     shell:
         """
         zcat {input.grch38:q} | \
-        cat - {input.pjy142:q} {input.pjy151:q} {input.pjy209:q} | \
+        cat - {input.pjy103:q} {input.pjy300:q} | \
         fasta_formatter -o {output:q} \
         2> {log:q}
         """
@@ -42,12 +41,12 @@ rule join_references:
 
 rule samtools_fasta_index:
     input:
-        "data/references/grch38_pjy142_pjy151_pjy209.fa",
+        "data/references/grch38_pjy103_pjy300.fa",
     output:
-        "data/references/grch38_pjy142_pjy151_pjy209.fa.fai",
+        "data/references/grch38_pjy103_pjy300.fa.fai",
     log:
-        "results/logs/faidx/grch38_p12_targets.log",
+        "results/logs/faidx/grch38_pjy103_pjy300_faindex.log",
     params:
         extra="",  # optional params string
     wrapper:
-        "v1.7.0/bio/samtools/faidx"
+        "v1.18.3/bio/samtools/faidx"
