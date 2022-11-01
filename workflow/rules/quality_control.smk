@@ -29,7 +29,7 @@ rule fastqc:
     params:
         "--quiet",
     wrapper:
-        "v1.7.0/bio/fastqc"
+        "v1.18.3/bio/fastqc"
 
 
 rule samtools_stats:
@@ -43,23 +43,7 @@ rule samtools_stats:
     log:
         "results/logs/samtools_stats/{sample}_{unit}.log",
     wrapper:
-        "v1.7.0/bio/samtools/stats"
-
-
-rule samtools_sort:
-    input:
-        "results/mapped/{sample}_{unit}.bam",
-    output:
-        "results/mapped_sorted/{sample}_{unit}.bam",
-    log:
-        "results/samtools_sort/{sample}_{unit}.log",
-    params:
-        extra="",
-    threads: 8
-    resources:
-        mem_mb=16000,
-    wrapper:
-        "v1.7.0/bio/samtools/sort"
+        "v1.18.3/bio/samtools/stats"
 
 
 rule samtools_index:
@@ -73,7 +57,7 @@ rule samtools_index:
         extra="",  # optional params string
     threads: 4  # This value - 1 will be sent to -@
     wrapper:
-        "v1.7.0/bio/samtools/index"
+        "v1.18.3/bio/samtools/index"
 
 
 rule samtools_idxstats:
@@ -87,7 +71,7 @@ rule samtools_idxstats:
     params:
         extra="",  # optional params string
     wrapper:
-        "v1.7.0/bio/samtools/idxstats"
+        "v1.18.3/bio/samtools/idxstats"
 
 
 rule deeptools_bampefragmentsize:
@@ -106,7 +90,7 @@ rule deeptools_bampefragmentsize:
         summary="results/deeptools_bampefragmentsize/fragment_size_summary.txt",
     log:
         "results/logs/deeptools_bampefragmentsize/deeptools_bampefragmentsize.log",
-    threads: 4
+    threads: 12
     conda:
         "../envs/deeptools.yaml"
     shell:
@@ -158,4 +142,4 @@ rule multiqc:
     log:
         "results/logs/multiqc.log",
     wrapper:
-        "v1.7.0/bio/multiqc"
+        "v1.18.3/bio/multiqc"

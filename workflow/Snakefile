@@ -33,12 +33,12 @@ rule all:
     input:
         "results/qc/multiqc.html",  # from quality_control
         expand(
-            "results/mapped/{sample}_{unit}.bam",
+            "results/mapped_sorted/{sample}_{unit}.bam",
             zip,
             sample=units.sample_name,
             unit=units.unit_name,
         ),
-        "data/references/grch38_pjy142_pjy151_pjy209.fa.fai",
+        "data/references/grch38_pjy103_pjy300.fa.fai",
 
 
 rule all_trimming:
@@ -48,6 +48,15 @@ rule all_trimming:
             sample=units.sample_name,
             unit=units.unit_name,
             read=["1", "2"],
+        ),
+
+
+rule all_mapping:
+    input:
+        expand(
+            "results/mapped_sorted/{sample}_{unit}.bam",
+            sample=units.sample_name,
+            unit=units.unit_name,
         ),
 
 
