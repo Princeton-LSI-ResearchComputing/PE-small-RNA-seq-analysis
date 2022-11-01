@@ -9,8 +9,13 @@ properties:
     type: string
   units:
     type: string
-
+  adapter-read-1:
+    type: string
+  adapter-read-2:
+    type: string
 
 required:
   - samples
   - units
+  - adapter-read-1
+  - adapter-read-2

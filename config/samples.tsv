@@ -1,33 +1,9 @@
-Sample	pegRNA	Day	Replicate
- P1E10_sorted_PJY103_pegRNA_day1_K5_rep1	 PJY103	1	1
- P1E10_sorted_PJY103_pegRNA_day1_K6_rep2	 PJY103	1	2
- P1E10_sorted_PJY103_pegRNA_day1_K7_rep3	 PJY103	1	3
- P1E10_sorted_PJY103_pegRNA_day1_K8_rep4	 PJY103	1	4
- P1E10_sorted_PJY103_pegRNA_day2_K13_rep1	 PJY103	2	1
- P1E10_sorted_PJY103_pegRNA_day2_K14_rep2	 PJY103	2	2
- P1E10_sorted_PJY103_pegRNA_day2_K15_rep3	 PJY103	2	3
- P1E10_sorted_PJY103_pegRNA_day2_K16_rep4	 PJY103	2	4
- P1E10_sorted_PJY300_epegRNA_day1_K21_rep1	 PJY300	1	1
- P1E10_sorted_PJY300_epegRNA_day1_K22_rep2	 PJY300	1	2
- P1E10_sorted_PJY300_epegRNA_day1_K23_rep3	 PJY300	1	3
- P1E10_sorted_PJY300_epegRNA_day1_K24_rep4	 PJY300	1	4
- P1E10_sorted_PJY300_epegRNA_day2_K29_rep1	 PJY300	2	1
- P1E10_sorted_PJY300_epegRNA_day2_K30_rep2	 PJY300	2	2
- P1E10_sorted_PJY300_epegRNA_day2_K31_rep3	 PJY300	2	3
- P1E10_sorted_PJY300_epegRNA_day2_K32_rep4	 PJY300	2	4
- Parental_PJY103_pegRNA_day1_P1_rep1	 PJY103	1	1
- Parental_PJY103_pegRNA_day1_P2_rep2	 PJY103	1	2
- Parental_PJY103_pegRNA_day1_P3_rep3	 PJY103	1	3
- Parental_PJY103_pegRNA_day1_P4_rep4	 PJY103	1	4
- Parental_PJY103_pegRNA_day2_P10_rep2	 PJY103	2	2
- Parental_PJY103_pegRNA_day2_P11_rep3	 PJY103	2	3
- Parental_PJY103_pegRNA_day2_P12_rep4	 PJY103	2	4
- Parental_PJY103_pegRNA_day2_P9_rep1	 PJY103	2	1
- Parental_PJY300_epegRNA_day1_P17_rep1	 PJY300	1	1
- Parental_PJY300_epegRNA_day1_P18_rep2	 PJY300	1	2
- Parental_PJY300_epegRNA_day1_P19_rep3	 PJY300	1	3
- Parental_PJY300_epegRNA_day1_P20_rep4	 PJY300	1	4
- Parental_PJY300_epegRNA_day2_P25_rep1	 PJY300	2	1
- Parental_PJY300_epegRNA_day2_P26_rep2	 PJY300	2	2
- Parental_PJY300_epegRNA_day2_P27_rep3	 PJY300	2	3
- Parental_PJY300_epegRNA_day2_P28_rep4	 PJY300	2	4
+sample_name	pegRNA	Day
+P1E10_sorted_PJY103_pegRNA_day1	 PJY103	1
+P1E10_sorted_PJY103_pegRNA_day2	 PJY103	2
+P1E10_sorted_PJY300_epegRNA_day1	 PJY300	1
+P1E10_sorted_PJY300_epegRNA_day2	 PJY300	2
+Parental_PJY103_pegRNA_day1	 PJY103	1
+Parental_PJY103_pegRNA_day2	 PJY103	2
+Parental_PJY300_epegRNA_day1	 PJY300	1
+Parental_PJY300_epegRNA_day2	 PJY300	2
