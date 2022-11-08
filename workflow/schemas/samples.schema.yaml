@@ -5,9 +5,14 @@ properties:
   sample_name:
     type: string
     description: sample name/identifier
-  condition:
+  pegRNA:
     type: string
-    description: sample condition that will be compared during differential expression analysis (e.g. a treatment, a tissue time, a disease)
+    description: the identifier for the pegRNA species inserted into this sample
+  Day:
+    type: integer 
+    description: the day after insertion that the sample was collected
 
 required:
   - sample_name
+  - pegRNA
+  - Day

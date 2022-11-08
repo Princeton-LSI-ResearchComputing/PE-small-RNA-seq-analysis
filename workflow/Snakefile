@@ -27,6 +27,13 @@ units.index = units.index.set_levels(
 )  # enforce str in index
 validate(units, schema="schemas/units.schema.yaml")
 
+exogenous_sorted_bam_files = []
+for unit in units.itertuples():
+    sample_info = samples.loc[unit.sample_name]
+    exogenous_sorted_bam_files.append(
+        f"results/alignments/{sample_info.pegRNA}/sorted/{unit.sample_name}_{unit.unit_name}.bam",
+    )
+
 
 ##### target rules #####
 rule all:
@@ -54,7 +61,17 @@ rule all_trimming:
 rule all_mapping:
     input:
         expand(
-            "results/mapped_sorted/{sample}_{unit}.bam",
+            "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/{sample}_{unit}.bam",
+            sample=units.sample_name,
+            unit=units.unit_name,
+        ),
+        exogenous_sorted_bam_files,
+
+
+rule all_bedpe:
+    input:
+        expand(
+            "results/pegrna_bedpe/{sample}_{unit}_pegrna.bedpe",
             sample=units.sample_name,
             unit=units.unit_name,
         ),
@@ -82,3 +99,4 @@ include: "rules/genome.smk"
 include: "rules/trimming.smk"
 include: "rules/mapping.smk"
 include: "rules/quality_control.smk"
+include: "rules/alignment_reporting.smk"

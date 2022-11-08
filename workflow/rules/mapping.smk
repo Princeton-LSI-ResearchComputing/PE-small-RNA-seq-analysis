@@ -1,9 +1,9 @@
 rule bowtie2_build_large:
     input:
-        ref="data/references/grch38_pjy103_pjy300.fa",
+        ref="data/references/{genome}.fa",
     output:
         multiext(
-            "data/references/grch38_pjy103_pjy300",
+            "data/references/{genome}",
             ".1.bt2l",
             ".2.bt2l",
             ".3.bt2l",
@@ -12,7 +12,7 @@ rule bowtie2_build_large:
             ".rev.2.bt2l",
         ),
     log:
-        "results/logs/bowtie2_build/build.log",
+        "results/logs/bowtie2_build/{genome}.log",
     params:
         extra="--large-index",  # optional parameters
     threads: 12
@@ -23,14 +23,29 @@ rule bowtie2_build_large:
         "v1.18.3/bio/bowtie2/build"
 
 
-rule bowtie2:
+rule bowtie2_exogenous_rna:
     input:
-        sample=[
-            "results/trimmed/{sample}_{unit}.1.fastq.gz",
-            "results/trimmed/{sample}_{unit}.2.fastq.gz",
-        ],
+        unpack(input_exogenous_mapping),
+    output:
+        bam=temp("results/alignments/{genome}/unsorted/{sample}_{unit}.bam"),
+        unmapped_fq1="results/alignments/{genome}/unmapped/{sample}_{unit}.1.fq.gz",
+        unmapped_fq2="results/alignments/{genome}/unmapped/{sample}_{unit}.2.fq.gz",
+    log:
+        "results/logs/bowtie2/{genome}/{sample}_{unit}.log",
+    params:
+        extra=lambda wildcards, output: f"--un-conc-gz {output['unmapped_fq1'][:-8]}.%.fq.gz",  # optional parameters
+    wildcard_constraints:
+        genome="PJY\d+",
+    threads: 12  # Use at least two threads
+    wrapper:
+        "v1.18.3/bio/bowtie2/align"
+
+
+rule bowtie2_hg38:
+    input:
+        unpack(exogenous_unmapped_fastq),
         idx=multiext(
-            "data/references/grch38_pjy103_pjy300",
+            "data/references/Homo_sapiens.GRCh38.dna.primary_assembly",
             ".1.bt2l",
             ".2.bt2l",
             ".3.bt2l",
@@ -39,11 +54,15 @@ rule bowtie2:
             ".rev.2.bt2l",
         ),
     output:
-        temp("results/mapped/{sample}_{unit}.bam"),
+        bam=temp(
+            "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/unsorted/{sample}_{unit}.bam"
+        ),
+        unmapped_fq1="results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/unmapped/{sample}_{unit}.1.fq.gz",
+        unmapped_fq2="results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/unmapped/{sample}_{unit}.2.fq.gz",
     log:
-        "results/logs/bowtie2/{sample}_{unit}.log",
+        "results/logs/bowtie2/Homo_sapiens.GRCh38.dna.primary_assembly/{sample}_{unit}.log",
     params:
-        extra="",  # optional parameters
+        extra=lambda wildcards, output: f"--un-conc-gz {output['unmapped_fq1'][:-8]}.%.fq.gz",  # optional parameters
     threads: 12  # Use at least two threads
     wrapper:
         "v1.18.3/bio/bowtie2/align"
@@ -51,11 +70,11 @@ rule bowtie2:
 
 rule samtools_sort:
     input:
-        "results/mapped/{sample}_{unit}.bam",
+        "results/alignments/{genome}/unsorted/{sample}_{unit}.bam",
     output:
-        "results/mapped_sorted/{sample}_{unit}.bam",
+        "results/alignments/{genome}/sorted/{sample}_{unit}.bam",
     log:
-        "results/samtools_sort/{sample}_{unit}.log",
+        "results/samtools-sort/{genome}-{sample}_{unit}.log",
     params:
         extra="",
     threads: 8
