@@ -34,25 +34,25 @@ rule fastqc:
 
 rule samtools_stats:
     input:
-        bam="results/mapped_sorted/{sample}_{unit}.bam",
+        bam="results/alignments/{genome}/sorted/{sample}_{unit}.bam",
     output:
-        "results/samtools_stats/{sample}_{unit}.txt",
+        "results/samtools_stats/{genome}/{sample}_{unit}.txt",
     params:
         extra="",  # Optional: extra arguments.
         region="",  # Optional: region string.
     log:
-        "results/logs/samtools_stats/{sample}_{unit}.log",
+        "results/logs/samtools_stats/{genome}/{sample}_{unit}.log",
     wrapper:
         "v1.18.3/bio/samtools/stats"
 
 
 rule samtools_index:
     input:
-        "results/mapped_sorted/{sample}_{unit}.bam",
+        "results/alignments/{genome}/sorted/{sample}_{unit}.bam",
     output:
-        "results/mapped_sorted/{sample}_{unit}.bam.bai",
+        "results/alignments/{genome}/sorted/{sample}_{unit}.bam.bai",
     log:
-        "results/logs/samtools_index/{sample}_{unit}.log",
+        "results/logs/samtools_index/{genome}/{sample}_{unit}.log",
     params:
         extra="",  # optional params string
     threads: 4  # This value - 1 will be sent to -@
@@ -62,12 +62,12 @@ rule samtools_index:
 
 rule samtools_idxstats:
     input:
-        bam="results/mapped_sorted/{sample}_{unit}.bam",
-        bai="results/mapped_sorted/{sample}_{unit}.bam.bai",
+        bam="results/alignments/{genome}/sorted/{sample}_{unit}.bam",
+        bai="results/alignments/{genome}/sorted/{sample}_{unit}.bam.bai",
     output:
-        "results/samtools_idxstats/{sample}_{unit}.bam.idxstats",
+        "results/samtools_idxstats/{genome}/{sample}_{unit}.bam.idxstats",
     log:
-        "results/logs/samtools_idxstats/{sample}_{unit}.log",
+        "results/logs/samtools_idxstats/{genome}/{sample}_{unit}.log",
     params:
         extra="",  # optional params string
     wrapper:
@@ -77,19 +77,19 @@ rule samtools_idxstats:
 rule deeptools_bampefragmentsize:
     input:
         bam=expand(
-            "results/mapped_sorted/{unit.sample_name}_{unit.unit_name}.bam",
+            "results/alignments/{{genome}}/sorted/{unit.sample_name}_{unit.unit_name}.bam",
             unit=units.itertuples(),
         ),
         bai=expand(
-            "results/mapped_sorted/{unit.sample_name}_{unit.unit_name}.bam.bai",
+            "results/alignments/{{genome}}/sorted/{unit.sample_name}_{unit.unit_name}.bam.bai",
             unit=units.itertuples(),
         ),
     output:
-        table="results/deeptools_bampefragmentsize/fragment_size_table.tsv",
-        raw="results/deeptools_bampefragmentsize/fragment_size_raw_lengths.tsv",
-        summary="results/deeptools_bampefragmentsize/fragment_size_summary.txt",
+        table="results/deeptools_bampefragmentsize/{genome}/fragment_size_table.tsv",
+        raw="results/deeptools_bampefragmentsize/{genome}/fragment_size_raw_lengths.tsv",
+        summary="results/deeptools_bampefragmentsize/{genome}/fragment_size_summary.txt",
     log:
-        "results/logs/deeptools_bampefragmentsize/deeptools_bampefragmentsize.log",
+        "results/logs/deeptools_bampefragmentsize/{genome}/deeptools_bampefragmentsize.log",
     threads: 12
     conda:
         "../envs/deeptools.yaml"
@@ -106,7 +106,7 @@ rule deeptools_bampefragmentsize:
         """
 
 
-rule multiqc:
+rule multiqc_library:
     input:
         expand(
             "results/qc/fastqc/{unit.sample_name}_{unit.unit_name}.{readnum}.html",
@@ -114,32 +114,40 @@ rule multiqc:
             readnum=(1, 2),
         ),
         expand(
-            "results/logs/bowtie2/{unit.sample_name}_{unit.unit_name}.log",
-            unit=units.itertuples(),
-        ),
-        expand(
             "results/trimmed/{unit.sample_name}_{unit.unit_name}.qc",
             unit=units.itertuples(),
         ),
-        expand(
-            "results/logs/bowtie2/{unit.sample_name}_{unit.unit_name}.log",
-            unit=units.itertuples(),
-        ),
-        expand(
-            "results/samtools_stats/{unit.sample_name}_{unit.unit_name}.txt",
-            unit=units.itertuples(),
-        ),
-        expand(
-            "results/samtools_idxstats/{unit.sample_name}_{unit.unit_name}.bam.idxstats",
-            unit=units.itertuples(),
-        ),
-        "results/deeptools_bampefragmentsize/fragment_size_table.tsv",
-        "results/deeptools_bampefragmentsize/fragment_size_raw_lengths.tsv",
     output:
-        "results/qc/multiqc.html",
+        "results/qc/multiqc_library.html",
     params:
         "",
     log:
-        "results/logs/multiqc.log",
+        "results/logs/multiqc_library.log",
+    wrapper:
+        "v1.18.3/bio/multiqc"
+
+
+rule multiqc_mapped:
+    input:
+        expand(
+            "results/logs/bowtie2/{{genome}}/{unit.sample_name}_{unit.unit_name}.log",
+            unit=units.itertuples(),
+        ),
+        expand(
+            "results/samtools_stats/{{genome}}/{unit.sample_name}_{unit.unit_name}.txt",
+            unit=units.itertuples(),
+        ),
+        expand(
+            "results/samtools_idxstats/{{genome}}/{unit.sample_name}_{unit.unit_name}.bam.idxstats",
+            unit=units.itertuples(),
+        ),
+        "results/deeptools_bampefragmentsize/{genome}/fragment_size_table.tsv",
+        "results/deeptools_bampefragmentsize/{genome}/fragment_size_raw_lengths.tsv",
+    output:
+        "results/qc/multiqc_{genome}.html",
+    params:
+        "",
+    log:
+        "results/logs/multiqc_{genome}.log",
     wrapper:
         "v1.18.3/bio/multiqc"
