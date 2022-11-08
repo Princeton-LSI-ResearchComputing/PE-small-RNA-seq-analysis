@@ -1,0 +1,8 @@
+# conda environments needed for the workflow should be stored here.
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bedtools>=2.30.0
+  - samtools>=1.16.1
