@@ -33,7 +33,7 @@ rule bowtie2_exogenous_rna:
     log:
         "results/logs/bowtie2/exogenous_rna/{sample}_{unit}.log",
     params:
-        extra=lambda wildcards, output: f"--un-conc-gz {output['unmapped_fq1'][:-8]}.%.fq.gz",  # optional parameters
+        extra=lambda wildcards, output: f"--un-conc-gz {output['unmapped_fq1'][:-8]}.%.fq.gz --no-unal",  # optional parameters
     threads: 12  # Use at least two threads
     wrapper:
         "v1.18.3/bio/bowtie2/align"
@@ -63,7 +63,7 @@ rule bowtie2_hg38:
     log:
         "results/logs/bowtie2/Homo_sapiens.GRCh38.dna.primary_assembly/{sample}_{unit}.log",
     params:
-        extra=lambda wildcards, output: f"--un-conc-gz {output['unmapped_fq1'][:-8]}.%.fq.gz",  # optional parameters
+        extra=lambda wildcards, output: f"--un-conc-gz {output['unmapped_fq1'][:-8]}.%.fq.gz --no-unal",  # optional parameters
     threads: 12  # Use at least two threads
     wrapper:
         "v1.18.3/bio/bowtie2/align"
