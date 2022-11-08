@@ -27,15 +27,13 @@ rule bowtie2_exogenous_rna:
     input:
         unpack(input_exogenous_mapping),
     output:
-        bam=temp("results/alignments/{genome}/unsorted/{sample}_{unit}.bam"),
-        unmapped_fq1="results/alignments/{genome}/unmapped/{sample}_{unit}.1.fq.gz",
-        unmapped_fq2="results/alignments/{genome}/unmapped/{sample}_{unit}.2.fq.gz",
+        bam=temp("results/alignments/exogenous_rna/unsorted/{sample}_{unit}.bam"),
+        unmapped_fq1="results/alignments/exogenous_rna/unmapped/{sample}_{unit}.1.fq.gz",
+        unmapped_fq2="results/alignments/exogenous_rna/unmapped/{sample}_{unit}.2.fq.gz",
     log:
-        "results/logs/bowtie2/{genome}/{sample}_{unit}.log",
+        "results/logs/bowtie2/exogenous_rna/{sample}_{unit}.log",
     params:
         extra=lambda wildcards, output: f"--un-conc-gz {output['unmapped_fq1'][:-8]}.%.fq.gz",  # optional parameters
-    wildcard_constraints:
-        genome="PJY\d+",
     threads: 12  # Use at least two threads
     wrapper:
         "v1.18.3/bio/bowtie2/align"
@@ -43,7 +41,10 @@ rule bowtie2_exogenous_rna:
 
 rule bowtie2_hg38:
     input:
-        unpack(exogenous_unmapped_fastq),
+        sample=[
+            "results/alignments/exogenous_rna/unmapped/{sample}_{unit}.1.fq.gz",
+            "results/alignments/exogenous_rna/unmapped/{sample}_{unit}.2.fq.gz",
+        ],
         idx=multiext(
             "data/references/Homo_sapiens.GRCh38.dna.primary_assembly",
             ".1.bt2l",

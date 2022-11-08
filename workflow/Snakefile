@@ -65,7 +65,11 @@ rule all_mapping:
             sample=units.sample_name,
             unit=units.unit_name,
         ),
-        exogenous_sorted_bam_files,
+        expand(
+            "results/alignments/exogenous_rna/sorted/{sample}_{unit}.bam",
+            sample=units.sample_name,
+            unit=units.unit_name,
+        ),
 
 
 rule all_bedpe:
