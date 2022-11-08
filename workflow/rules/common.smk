@@ -34,16 +34,3 @@ def exogenous_unmapped_fastq(wildcards):
             f"results/alignments/{sample_info.pegRNA}/unmapped/{wildcards.sample}_{wildcards.unit}.2.fq.gz",
         ],
     }
-
-
-rule unzip:
-    input:
-        "data/references/{genome}.fa.gz",
-    output:
-        "data/references/{genome}.fa",
-    log:
-        "results/logs/unzip/{genome}.txt",
-    conda:
-        "../envs/gzip.yaml"
-    shell:
-        "gzip -dc {input:q} > {output:q} 2> {log:q}"
