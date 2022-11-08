@@ -19,24 +19,17 @@ rule fetch_grch38:
         shell("mv {input:q} {output:q} &> {log:q}")
 
 
-# rule join_references:
-#     input:
-#         pjy103="data/references/PJY103.fa",
-#         pjy300="data/references/PJY300.fa",
-#         grch38="data/references/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz",
-#     output:
-#         "data/references/grch38_pjy103_pjy300.fa",
-#     log:
-#         "results/logs/join_references.log",
-#     conda:
-#         "../envs/fastx_toolkit.yaml"
-#     shell:
-#         """
-#         zcat {input.grch38:q} | \
-#         cat - {input.pjy103:q} {input.pjy300:q} | \
-#         fasta_formatter -o {output:q} \
-#         2> {log:q}
-#         """
+rule unzip:
+    input:
+        "data/references/{genome}.fa.gz",
+    output:
+        "data/references/{genome}.fa",
+    log:
+        "results/logs/unzip/{genome}.txt",
+    conda:
+        "../envs/gzip.yaml"
+    shell:
+        "gzip -dc {input:q} > {output:q} 2> {log:q}"
 
 
 rule samtools_fasta_index:
