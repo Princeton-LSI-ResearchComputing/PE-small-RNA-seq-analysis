@@ -31,7 +31,7 @@ exogenous_sorted_bam_files = []
 for unit in units.itertuples():
     sample_info = samples.loc[unit.sample_name]
     exogenous_sorted_bam_files.append(
-        f"results/alignments/{sample_info.pegRNA}/sorted/{unit.sample_name}_{unit.unit_name}.bam",
+        f"results/alignments/{sample_info.exogenous_rna}/sorted/{unit.sample_name}_{unit.unit_name}.bam",
     )
 
 
