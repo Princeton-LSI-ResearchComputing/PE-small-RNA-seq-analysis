@@ -5,14 +5,18 @@ properties:
   sample_name:
     type: string
     description: sample name/identifier
-  pegRNA:
+  cell_line:
+    type: string
+    description: the cell line used (e.g. Parental, P1E10)
+  exogenous_rna:
     type: string
     description: the identifier for the pegRNA species inserted into this sample
-  Day:
-    type: integer 
+  day:
+    type: integer
     description: the day after insertion that the sample was collected
 
 required:
   - sample_name
-  - pegRNA
-  - Day
+  - cell_line
+  - exogenous_rna
+  - day
