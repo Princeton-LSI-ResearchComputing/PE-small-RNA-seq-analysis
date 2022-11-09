@@ -27,18 +27,34 @@ units.index = units.index.set_levels(
 )  # enforce str in index
 validate(units, schema="schemas/units.schema.yaml")
 
+exogenous_sorted_bam_files = []
+for unit in units.itertuples():
+    sample_info = samples.loc[unit.sample_name]
+    exogenous_sorted_bam_files.append(
+        f"results/alignments/{sample_info.pegRNA}/sorted/{unit.sample_name}_{unit.unit_name}.bam",
+    )
+
 
 ##### target rules #####
 rule all:
     input:
-        "results/qc/multiqc.html",  # from quality_control
         expand(
-            "results/mapped_sorted/{sample}_{unit}.bam",
-            zip,
+            "results/qc/multiqc_{genome}.html",
+            genome=(
+                "library",
+                "exogenous_rna",
+                "Homo_sapiens.GRCh38.dna.primary_assembly",
+            ),
+        ),
+        expand(
+            "results/alignments/exogenous_rna/bedpe/{sample}_{unit}.bedpe",
             sample=units.sample_name,
             unit=units.unit_name,
         ),
-        "data/references/grch38_pjy103_pjy300.fa.fai",
+        expand(
+            "data/references/{genome}.fa.fai",
+            genome=("PJY103", "PJY300", "Homo_sapiens.GRCh38.dna.primary_assembly"),
+        ),
 
 
 rule all_trimming:
@@ -54,7 +70,29 @@ rule all_trimming:
 rule all_mapping:
     input:
         expand(
-            "results/mapped_sorted/{sample}_{unit}.bam",
+            "results/alignments/{genome}/sorted/{sample}_{unit}.bam",
+            sample=units.sample_name,
+            unit=units.unit_name,
+            genome=("Homo_sapiens.GRCh38.dna.primary_assembly", "exogenous_rna"),
+        ),
+
+
+rule all_multiqc:
+    input:
+        expand(
+            "results/qc/multiqc_{genome}.html",
+            genome=(
+                "library",
+                "exogenous_rna",
+                "Homo_sapiens.GRCh38.dna.primary_assembly",
+            ),
+        ),
+
+
+rule all_bedpe:
+    input:
+        expand(
+            "results/alignments/exogenous_rna/bedpe/{sample}_{unit}.bedpe",
             sample=units.sample_name,
             unit=units.unit_name,
         ),
@@ -82,3 +120,4 @@ include: "rules/genome.smk"
 include: "rules/trimming.smk"
 include: "rules/mapping.smk"
 include: "rules/quality_control.smk"
+include: "rules/alignment_reporting.smk"
