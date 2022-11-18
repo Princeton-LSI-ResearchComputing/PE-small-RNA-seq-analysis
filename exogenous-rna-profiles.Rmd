@@ -3,6 +3,7 @@ title: "Adamson smallRNA - pegRNA"
 output:
   html_notebook:
     toc: true
+    code_folding: hide
 ---
 
 ## Load libraries
@@ -20,6 +21,8 @@ renv::restore()
 library(readr)
 library(dplyr)
 library(tidyr)
+library(reshape2)
+library(GenomicRanges)
 library(pheatmap)
 library(tibble)
 library(ggplot2)
@@ -27,45 +30,91 @@ library(stringr)
 library(cowplot)
 library(markdown)
 library(RColorBrewer)
+library(GenomicAlignments)
 ```
-
 
 ## Read data
 
 1. Get list of samples
 
 ```{r}
-idxstats_dir <- "results/samtools_idxstats/Homo_sapiens.GRCh38.dna.primary_assembly/"
-samples <- str_remove(list.files(idxstats_dir), ".bam.idxstats")
-samples
+samples <- read_tsv("config/samples.tsv", show_col_types = FALSE)
+units <- read_tsv("config/units.tsv", show_col_types = FALSE)
+sample_units <- dplyr::left_join(samples, units, by = "sample_name") %>%
+  unite(sample_unit, sample_name, unit_name, remove = FALSE)
+sample_units
 ```
 
 2. Read Samtools `idxstats` to get human coverage for normalization
 
-Note, the values from `idxstats` include the total number of reads aligned are
-not limited to uniquely aligned reads.
+Notes:
+* The counts include the total number of reads aligned, they 
+  are not limited to uniquely aligned reads.
+* The counts are reads, not pairs or fragments
 
 ```{r}
-idxstats <- tibble(sample = samples, grch38_mapped_reads = NaN)
-for (sample in samples) {
+idxstats_exogenousrna_dir <-
+  "results/samtools_idxstats/exogenous_rna/"
 
-  # Read `idxstats` for normalization
-  stats <- read_tsv(
-    file.path(idxstats_dir, sprintf("%s.bam.idxstats", sample)),
+idxstats_human_dir <-
+  "results/samtools_idxstats/Homo_sapiens.GRCh38.dna.primary_assembly/"
+
+bowtie2_human_logs <-
+  "results/logs/bowtie2/Homo_sapiens.GRCh38.dna.primary_assembly/"
+
+idxstats <- tibble(
+  sample = sample_units$sample_unit,
+  exogenous_rna_mapped_reads = NaN,
+  grch38_mapped_reads = NaN,
+  unmapped_reads = NaN
+)
+
+for (row in seq_len(nrow(sample_units))) {
+  sample <- sample_units[row, ]$sample_unit
+
+  # Read `idsxstats` for exogenous mapped reads
+  exogenous_rna_stats <- read_tsv(
+    file.path(idxstats_exogenousrna_dir, sprintf("%s.bam.idxstats", sample)),
     col_names = c(
       "sequence_name", "sequence_length",
       "mapped_reads", "unmapped_reads"
     ),
     col_types = "ciii"
   )
-  grch38_mapped_reads <- stats %>%
+  exogenous_rna_mapped_reads <- exogenous_rna_stats %>%
     filter(!sequence_name %in% c("*")) %>%
     select(mapped_reads) %>%
     sum()
+
+  # Read `idxstats` for human mapped reads
+  human_stats <- read_tsv(
+    file.path(idxstats_human_dir, sprintf("%s.bam.idxstats", sample)),
+    col_names = c(
+      "sequence_name", "sequence_length",
+      "mapped_reads", "unmapped_reads"
+    ),
+    col_types = "ciii"
+  )
+  grch38_mapped_reads <- human_stats %>%
+    filter(!sequence_name %in% c("*")) %>%
+    select(mapped_reads) %>%
+    sum()
+
+  # Read bowtie2 logs for unmapped reads
+  bowtie2_log <- readLines(
+    file.path(bowtie2_human_logs, sprintf("%s.log", sample))
+  )
+  total_pairs <- strtoi(str_split(bowtie2_log[1], " ")[[1]][1])
+  total_reads <- total_pairs * 2
+  unmapped_reads <- total_reads - grch38_mapped_reads
+
+  # Consolidate counts for rows
   idxstats <- rows_update(idxstats,
     tibble(
       sample = sample,
-      grch38_mapped_reads = grch38_mapped_reads
+      exogenous_rna_mapped_reads = exogenous_rna_mapped_reads,
+      grch38_mapped_reads = grch38_mapped_reads,
+      unmapped_reads = unmapped_reads,
     ),
     by = "sample"
   )
@@ -77,17 +126,18 @@ idxstats
 
 ```{r}
 bedpe_data <- tibble()
-for (sample in samples) {
+for (sample in sample_units$sample_unit) {
   data <-
-    readr::read_tsv(sprintf(
-      "results/alignments/exogenous_rna/bedpe/%s.bedpe", sample
-    ),
-    col_names = c(
-      "chrom1", "chrom1Start", "chrom1End",
-      "chrom2", "chrom2Start", "chrom2End",
-      "name", "score", "strand1", "strand2"
-    ),
-    col_types = "ciiciicicc"
+    readr::read_tsv(
+      sprintf(
+        "results/alignments/exogenous_rna/bedpe/%s.bedpe", sample
+      ),
+      col_names = c(
+        "chrom1", "chrom1Start", "chrom1End",
+        "chrom2", "chrom2Start", "chrom2End",
+        "name", "score", "strand1", "strand2"
+      ),
+      col_types = "ciiciicicc"
     )
   bedpe_data <- tibble(rbind(
     bedpe_data,
@@ -105,8 +155,9 @@ bedpe_data
 The exogenous RNA references have the following structure
 
 **PJY103**
+
 | start | end | description |
-| --- | --- | --- |
+|:--- |:--- |:--- |
 | 1 | 330 | plasmid-1 |
 | 331 | 351 | protospacer |
 | 352 | 427 | gRNA scaffold |
@@ -129,8 +180,9 @@ annotation_pjy103 <- annotation_pjy103 %>%
 ```
 
 **PJY300**
+
 | start | end | description |
-| --- | --- | --- |
+|:--- |:--- |:--- |
 | 1 | 330 | plasmid-1 |
 | 331 | 351 | protospacer |
 | 352 | 427 | gRNA scaffold |
@@ -140,7 +192,6 @@ annotation_pjy103 <- annotation_pjy103 %>%
 | 498 | 2343 | plasmid-2 |
 
 ```{r}
-
 annotation_pjy300 <- tibble(chrom2End = 1:2306, label = "plasmid")
 annotation_pjy300[331:351, ]$label <- "protospacer"
 annotation_pjy300[352:427, ]$label <- "gRNA scaffold"
@@ -153,502 +204,173 @@ annotation_pjy300 <- annotation_pjy300 %>%
   column_to_rownames("region")
 ```
 
-## Summarize "cpmplete" fragments
+## Coverage
 
-"Complete" fragments are defined as fragments that start at or near the
-protospacer. The following rules are used to generate counts for where the
-sequenced fragment ends:
+### Concordant vs Discordant paired reads
 
-* Count only fragments that start within 2 bp of the (e)pegRNA
-* Sum for each "end" position
-* Normalize using reads mapped to human genome (grch38)
+Concordant pairs are pairs of reads that:
 
-```{r}
-summarized_data <- bedpe_data %>%
-  filter(chrom1Start >= 329 & chrom1Start <= 333) %>%
-  count(sample, grch38_mapped_reads, chrom1, chrom2End,
-    name = "count"
-  ) %>%
-  mutate(normalizedCount = (count * 10^6) / grch38_mapped_reads) %>%
-  # Fill in missing values between pegRNA start and end with 0
-  complete(
-    nesting(sample, grch38_mapped_reads, chrom1),
-    chrom2End = seq(329, 501),
-    fill = list(count = 0, normalizedCount = 0)
-  )
-summarized_data
-```
+* Align on the same pegRNA
+* Align within 500 bp of each other
+* Align in the expected forward-reverse orientation (`--> .. <--`)
 
-Pivot data for correlation analysis
+Discordant reads aligned but whose mate:
 
-```{r}
-corr_data <- summarized_data %>%
-  select(-grch38_mapped_reads, -count) %>%
-  pivot_wider(names_from = sample, values_from = normalizedCount) %>%
-  arrange(chrom1, chrom2End)
-corr_data
-```
+* Did not align (on the pegRNA)
+* Aligned more than 500 bp away
+* Aligned in an unexpected orientation
 
-Save summarized data tables to text files
+```{r fig.width=10, fig.height=10}
+## Config and function definition
 
-```{r}
-write_tsv(summarized_data, file = "exogenous_targets_paired_read_summary.tsv")
-write_tsv(corr_data, file = "exogenous_targets_normalized_counts.tsv")
-```
+bam_dir <- "results/alignments/exogenous_rna/sorted"
 
+param_discordant <- ScanBamParam(flag = scanBamFlag(isProperPair = FALSE))
+param_concordant <- ScanBamParam(flag = scanBamFlag(isProperPair = TRUE))
+last_day <- 0
 
-## Transform data
-
-Split data by pegRNA species and log transform
-
-```{r}
-heatmap_data_pjy103 <- corr_data %>%
-  select("chrom1" | "chrom2End" | contains("PJY103")) %>%
-  na.omit() %>%
-  unite(region, c("chrom1", "chrom2End")) %>%
-  mutate_if(is.numeric, log1p) %>%
-  column_to_rownames("region")
-heatmap_data_pjy103
-```
-
-```{r}
-heatmap_data_pjy300 <- corr_data %>%
-  select("chrom1" | "chrom2End" | contains("PJY300")) %>%
-  na.omit() %>%
-  unite(region, c("chrom1", "chrom2End")) %>%
-  mutate_if(is.numeric, log1p) %>%
-  column_to_rownames("region")
-heatmap_data_pjy300
-```
-
-## Replicate correlation
-
-Read in the sample metadata
-
-```{r fig.height=16, fig.width=8}
-samples <- read_tsv("config/samples.tsv")
-units <- read_tsv("config/units.tsv")
-
-annotation <- samples %>%
-  left_join(units) %>%
-  unite(sample, c(sample_name, unit_name)) %>%
-  select(sample, cell_line, exogenous_rna, day) %>%
-  column_to_rownames("sample") %>%
-  mutate(across(c(cell_line, exogenous_rna, day), factor))
-
-colors <- colorRampPalette(brewer.pal(9, "Blues"))(255)
-
-newCols <- colorRampPalette(grDevices::rainbow(length(unique(annotation_pjy300$label))))
-colors_pjy300 <- newCols(length(unique(annotation_pjy300$label)))
-names(colors_pjy300) <- unique(annotation_pjy300$label)
-colors_pjy300 <- list(label = colors_pjy300)
-colors_pjy103 <- list(label = mycolors$label[names(mycolors$label) != "riboswitch"])
-
-```
-
-
-
-
-
-Heatmaps based on fragment lengths for each pegRNA species
-
-```{r fig.height=12, fig.width=12}
-heatmap_pjy103 <- pheatmap(heatmap_data_pjy103,
-  cluster_rows = FALSE,
-  show_rownames = FALSE,
-  cluster_cols = TRUE,
-  annotation_col = annotation %>% filter(exogenous_rna == "PJY103") %>% select(-exogenous_rna),
-  annotation_row = annotation_pjy103,
-  annotation_colors = colors_pjy103,
-  main = "PJY103 Fragment Lengths",
-  color = colors,
-  silent = TRUE
+concordant_cell_line_colors <- list(
+  "Parental" = "#de425b",
+  "P1E10" = "#488f31"
 )
 
-heatmap_pjy300 <- pheatmap(heatmap_data_pjy300,
-  cluster_rows = FALSE,
-  show_rownames = FALSE,
-  cluster_cols = TRUE,
-  annotation_col = annotation %>% filter(exogenous_rna == "PJY300") %>% select(-exogenous_rna),
-  annotation_row = annotation_pjy300,
-  annotation_colors = colors_pjy300,
-  main = "PJY300 Fragment Lengths",
-  color = colors,
-  silent = TRUE
+discordant_cell_line_colors <- list(
+  "Parental" = "#e98e6a",
+  "P1E10" = "#93b168"
 )
 
-cowplot::plot_grid(heatmap_pjy103$gtable, heatmap_pjy300$gtable, ncol = 2)
-```
+pegrna_plots <- function(rna_species, normalization_factor, ylim, ylab) {
+  par(mfrow = c(2, 1))
 
+  for (s in (sample_units %>%
+    arrange(exogenous_rna, day, cell_line) %>%
+    filter(exogenous_rna == rna_species))$sample_unit) {
+    exogenous_mapped_reads <- bedpe_data %>%
+      filter(sample == s) %>%
+      select(.data[[normalization_factor]]) %>%
+      unique() %>%
+      pull(1)
 
-```{r fig.height=10, fig.width=12}
-sample_dists <- dist(t(heatmap_data))
-sample_dist_matrix <- as.matrix(sample_dists)
-pheatmap(sample_dist_matrix,
-  clustering_distance_rows = sample_dists,
-  clustering_distance_cols = sample_dists,
-  col = colors,
-  annotation = annotation
-)
-```
+    cell_line <- sample_units %>%
+      filter(sample_unit == s) %>%
+      pull(cell_line)
+    day <- sample_units %>%
+      filter(sample_unit == s) %>%
+      pull(day)
 
-
----
-
-## Exogenous species comparison
-
-Heatmap functions
-```{r}
-blue_colors <- colorRampPalette(brewer.pal(9, "Blues"))(200)
-diverging_colors <- colorRampPalette(brewer.pal(9, "RdBu"))(200)
-
-sgrna_heatmap <- function(data, color = blue_colors, ...) {
-  hmap <- pheatmap(
-    data,
-    cluster_rows = FALSE,
-    color = color,
-    fontsize_row = 6,
-    ...
-  )
-  return(hmap)
-}
-
-filter_and_fill_data <- function(data, chrom, length) {
-  filtered_data <- data %>%
-    filter(chrom1 == chrom) %>%
-    complete(
-      nesting(chrom1, chrom1Start),
-      chrom2End = seq(0, length),
-      fill = list(count = 0, normalizedCount = 0)
-    ) %>%
-    unite(seqid, chrom1, chrom1Start, chrom2End) %>%
-    column_to_rownames("seqid")
-  return(filtered_data)
-}
-
-
-# Collapse Replicates
-collapse_data <- function(data) {
-  collapsed_data <- data %>%
-    mutate(PJY142_PJY209 = rowMeans(
-      select(., starts_with("PJY142_PJY209"))
-    )) %>%
-    mutate(PJY142_PJY99 = rowMeans(
-      select(., starts_with("PJY142_PJY99"))
-    )) %>%
-    mutate(PJY151_PJY209 = rowMeans(
-      select(., starts_with("PJY151_PJY209"))
-    )) %>%
-    mutate(PJY151_PJY99 = rowMeans(
-      select(., starts_with("PJY151_PJY99"))
-    )) %>%
-    select(-contains("_rep"))
-  return(collapsed_data)
-}
-
-# Scale
-scale_data <- function(data, center = TRUE, scale = TRUE) {
-  scaled_data <- data %>%
-    mutate_at(
-      vars(starts_with("PJY")),
-      ~ (. / sum(., na.rm = TRUE))
-      # ~ scale(., center = center, scale = scale)
+    discordant <- readGAlignments(sprintf("%s/%s.bam", bam_dir, s),
+      param = param_discordant
     )
-  return(scaled_data)
+    cov_discordant <- coverage(discordant)
+    cov_discordant_norm_pegrna <- cov_discordant / exogenous_mapped_reads
+
+    df_complete <- bedpe_data %>%
+      filter(sample == s)
+    concordant <- GRanges(
+      ranges = IRanges(
+        start = df_complete$chrom1Start,
+        end = df_complete$chrom2End
+      ),
+      seqnames = df_complete$chrom1
+    )
+    cov_concordant <- coverage(concordant)
+    cov_concordant_norm_pegrna <- cov_concordant / exogenous_mapped_reads
+
+    if (day != last_day) {
+      plot(cov_concordant_norm_pegrna[[rna_species]],
+        type = "l",
+        col = concordant_cell_line_colors[[cell_line]],
+        ylim = ylim,
+        xlim = c(0, 600),
+        main = sprintf("Day %s", day),
+        xlab = sprintf("%s position", rna_species),
+        ylab = ylab
+      )
+      lines(cov_discordant_norm_pegrna[[rna_species]],
+        type = "l",
+        col = discordant_cell_line_colors[[cell_line]]
+      )
+    } else {
+      lines(cov_concordant_norm_pegrna[[rna_species]],
+        type = "l",
+        col = concordant_cell_line_colors[[cell_line]]
+      )
+      lines(cov_discordant_norm_pegrna[[rna_species]],
+        type = "l",
+        col = discordant_cell_line_colors[[cell_line]]
+      )
+    }
+    legend("topleft",
+      legend = c(
+        "Parental:Concordant",
+        "P1E10:Concordant",
+        "Parental:Discordant",
+        "P1E10:Discordant"
+      ),
+      col = unlist(c(
+        concordant_cell_line_colors,
+        discordant_cell_line_colors
+      )),
+      lty = 1,
+      cex = 1.0
+    )
+    last_day <- day
+  }
 }
 ```
 
+### Normalized to pegRNA reads
 
-### PJY142
+#### PJY103 (pegRNA)
 
-Histogram of fragments starting at position zero (0)
-```{r, fig.width=12}
-pjy142_length <- 113
-pjy142_hist <-
-  ggplot(
-    summarized_data %>%
-      filter(chrom1 == "PJY142") %>%
-      complete(
-        nesting(sample, grch38_mapped_reads, chrom1, chrom1Start),
-        chrom2End = seq(0, pjy142_length),
-        fill = list(count = 0, normalizedCount = 0)
-      ),
-    aes(x = chrom2End, y = normalizedCount, fill = sample)
-  ) +
-  geom_bar(stat = "identity") +
-  theme(legend.position = "none") +
-  facet_grid(vars(sample))
-plot_grid(pjy142_hist, pjy142_hist + scale_y_continuous(trans = "log1p"))
+```{r fig.width=10, fig.height=10}
+pegrna_plots(
+  rna_species = "PJY103",
+  normalization_factor = "exogenous_rna_mapped_reads",
+  ylim = c(0, 0.5),
+  ylab = "Coverage (normalized to pegRNA reads)"
+)
 ```
+#### PJY300 (epegRNA)
 
-#### Heatmaps PJY142
-
-```{r, fig.width=12, fig.height=14}
-pjy142_hmap <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY142", pjy142_length) %>%
-    log1p(),
-  silent = TRUE
+```{r fig.width=10, fig.height=10}
+pegrna_plots(
+  rna_species = "PJY300",
+  normalization_factor = "exogenous_rna_mapped_reads",
+  ylim = c(0, 0.5),
+  ylab = "Coverage (normalized to pegRNA reads)"
 )
-pjy142_hmap_collapsed <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY142", pjy142_length) %>%
-    collapse_data() %>%
-    log1p(),
-  silent = TRUE
-)
-plot_grid(pjy142_hmap$gtable, pjy142_hmap_collapsed$gtable)
-```
-
-Heatmaps with columns scaled by number of reads mapped to the region plotted
-```{r, fig.width=12, fig.height=14}
-pjy142_hmap_scaled <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY142", pjy142_length) %>%
-    scale_data(),
-  silent = TRUE
-)
-pjy142_hmap_scaled_collapsed <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY142", pjy142_length) %>%
-    scale_data() %>%
-    collapse_data(),
-  silent = TRUE
-)
-plot_grid(pjy142_hmap_scaled$gtable, pjy142_hmap_scaled_collapsed$gtable)
 ```
 
 
+### Normalized to Human mapped reads
 
+#### PJY103 (pegRNA)
 
-### PJY151
-
-Histogram of fragments starting at position zero (0)
-```{r, fig.width=12}
-pjy151_length <- 113
-pjy151_hist <-
-  ggplot(
-    summarized_data %>%
-      filter(chrom1 == "PJY151") %>%
-      complete(
-        nesting(sample, grch38_mapped_reads, chrom1, chrom1Start),
-        chrom2End = seq(0, pjy151_length),
-        fill = list(count = 0, normalizedCount = 0)
-      ),
-    aes(x = chrom2End, y = normalizedCount, fill = sample)
-  ) +
-  geom_bar(stat = "identity") +
-  theme(legend.position = "none") +
-  facet_grid(vars(sample))
-plot_grid(pjy151_hist, pjy151_hist + scale_y_continuous(trans = "log1p"))
+```{r fig.width=10, fig.height=10}
+pegrna_plots(
+  rna_species = "PJY103",
+  normalization_factor = "grch38_mapped_reads",
+  ylim = c(0, 0.0012),
+  ylab = "Coverage (normalized to Human reads)"
+)
 ```
+#### PJY300 (epegRNA)
 
-Heatmap PJY151
-```{r, fig.width=12, fig.height=14}
-pjy151_hmap <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY151", pjy151_length) %>%
-    log1p(),
-  silent = TRUE
+```{r fig.width=10, fig.height=10}
+pegrna_plots(
+  rna_species = "PJY300",
+  normalization_factor = "grch38_mapped_reads",
+  ylim = c(0, 0.004),
+  ylab = "Coverage (normalized to Human reads)"
 )
-pjy151_hmap_collapsed <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY151", pjy151_length) %>%
-    collapse_data() %>%
-    log1p(),
-  silent = TRUE
-)
-plot_grid(pjy151_hmap$gtable, pjy151_hmap_collapsed$gtable)
 ```
+### Normalize to reads mapped to 5.8S rRNA
 
+[5.8S rRNA in Ensembl assembly](http://useast.ensembl.org/Homo_sapiens/Gene/Summary?g=ENSG00000283568;r=20:29297095-29297246;t=ENST00000637374)
 
+No reads found aligning there (three total across all samples)
 
-
-```{r, fig.width=12, fig.height=14}
-pjy151_hmap_scaled <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY151", pjy151_length) %>%
-    scale_data(),
-  silent = TRUE
-)
-pjy151_hmap_scaled_collapsed <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY151", pjy151_length) %>%
-    scale_data() %>%
-    collapse_data(),
-  silent = TRUE
-)
-plot_grid(pjy151_hmap_scaled$gtable, pjy151_hmap_scaled_collapsed$gtable)
-```
-
-
-### PJY99
-
-Histogram of fragments starting at position zero (0)
-```{r, fig.width=12}
-pjy99_length <- 138
-pjy99_hist <-
-  ggplot(
-    summarized_data %>%
-      filter(chrom1 == "PJY209", chrom1Start == 0) %>%
-      filter(grepl("PJY99", sample)) %>%
-      filter(chrom2End <= pjy99_length) %>%
-      complete(
-        nesting(sample, grch38_mapped_reads, chrom1, chrom1Start),
-        chrom2End = seq(0, pjy99_length),
-        fill = list(count = 0, normalizedCount = 0)
-      ),
-    aes(x = chrom2End, y = normalizedCount, fill = sample)
-  ) +
-  geom_bar(stat = "identity") +
-  theme(legend.position = "none") +
-  facet_grid(vars(sample))
-plot_grid(pjy99_hist, pjy99_hist + scale_y_continuous(trans = "log1p"))
-```
-
-
-Heatmap PJY99
-```{r, fig.width=12, fig.height=14}
-pjy99_hmap <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY209", pjy99_length) %>%
-    select(!contains("PJY209")) %>%
-    log1p(),
-  silent = TRUE
-)
-pjy99_hmap_collapsed <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY209", pjy99_length) %>%
-    collapse_data() %>%
-    select(!contains("PJY209")) %>%
-    log1p(),
-  silent = TRUE
-)
-plot_grid(pjy99_hmap$gtable, pjy99_hmap_collapsed$gtable)
-```
-
-```{r, fig.width=12, fig.height=16}
-pjy99_hmap_scaled <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY209", pjy99_length) %>%
-    select(!contains("PJY209")) %>%
-    scale_data(),
-  silent = TRUE
-)
-pjy99_hmap_scaled_collapsed <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY209", pjy99_length) %>%
-    scale_data() %>%
-    collapse_data() %>%
-    select(!contains("PJY209")),
-  silent = TRUE
-)
-plot_grid(pjy99_hmap_scaled$gtable, pjy99_hmap_scaled_collapsed$gtable)
-```
-
-
-### PJY209
-
-Histogram of fragments starting at position zero (0)
-```{r, fig.width=12}
-pjy209_length <- 174
-pjy209_hist <-
-  ggplot(
-    summarized_data %>%
-      filter(chrom1 == "PJY209", chrom1Start == 0) %>%
-      filter(grepl("PJY209", sample)) %>%
-      complete(
-        nesting(sample, grch38_mapped_reads, chrom1, chrom1Start),
-        chrom2End = seq(0, pjy209_length),
-        fill = list(count = 0, normalizedCount = 0)
-      ),
-    aes(x = chrom2End, y = normalizedCount, fill = sample)
-  ) +
-  geom_bar(stat = "identity") +
-  theme(legend.position = "none") +
-  facet_grid(vars(sample))
-plot_grid(pjy209_hist, pjy209_hist + scale_y_continuous(trans = "log1p"))
-```
-
-Heatmap PJY209
-```{r, fig.width=12, fig.height=16}
-pjy209_hmap <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY209", pjy209_length) %>%
-    select(contains("PJY209")) %>%
-    log1p(),
-  silent = TRUE
-)
-pjy209_hmap_collapsed <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY209", pjy209_length) %>%
-    collapse_data() %>%
-    select(contains("PJY209")) %>%
-    log1p(),
-  silent = TRUE
-)
-plot_grid(pjy209_hmap$gtable, pjy209_hmap_collapsed$gtable)
-```
-
-```{r, fig.width=12, fig.height=16}
-pjy209_hmap_scaled <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY209", pjy209_length) %>%
-    select(contains("PJY209")) %>%
-    scale_data(),
-  silent = TRUE,
-)
-pjy209_hmap_scaled_collapsed <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY209", pjy209_length) %>%
-    scale_data() %>%
-    collapse_data() %>%
-    select(contains("PJY209")),
-  silent = TRUE,
-)
-plot_grid(pjy209_hmap_scaled$gtable, pjy209_hmap_scaled_collapsed$gtable)
-```
-
-```{r}
-pjy209_scaled_diff <-
-  corr_data %>%
-  filter_and_fill_data("PJY209", pjy209_length) %>%
-  scale_data() %>%
-  collapse_data() %>%
-  select(contains("PJY209")) %>%
-  mutate(PJY_DIFF = PJY151_PJY209 - PJY142_PJY209)
-pjy209_scaled_diff
-```
-
-#### Heatmap of Difference
-
-Plot the difference between the scaled reads for PJY151 vs PJY142
-
-```{r, fig.width=12, fig.height=16}
-pjy209_hmap_comp <- sgrna_heatmap(
-  corr_data %>%
-    filter_and_fill_data("PJY209", pjy209_length) %>%
-    scale_data() %>%
-    collapse_data() %>%
-    select(contains("PJY209")),
-  silent = TRUE,
-  treeheight_col = 0,
-  show_colnames = FALSE,
-  main = "Scaled PJY151 and PJY142"
-)
-
-pjy209_hmap_diff <- sgrna_heatmap(
-  pjy209_scaled_diff %>% select("PJY_DIFF"),
-  cluster_cols = FALSE,
-  silent = TRUE,
-  color = diverging_colors,
-  scale = "column",
-  show_colnames = FALSE,
-  main = "PJY151 vs PJY142"
-)
-
-plot_grid(pjy209_hmap_comp$gtable,
-  pjy209_hmap_diff$gtable,
-  rel_widths = c(2, 1)
-)
+```bash
+for f in results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/*.bam; do echo $f; samtools view $f 20:29,297,095-29,297,246; done
 ```
