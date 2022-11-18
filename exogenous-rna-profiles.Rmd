@@ -31,6 +31,7 @@ library(cowplot)
 library(markdown)
 library(RColorBrewer)
 library(GenomicAlignments)
+library(reshape2)
 ```
 
 ## Read data
@@ -48,6 +49,7 @@ sample_units
 2. Read Samtools `idxstats` to get human coverage for normalization
 
 Notes:
+
 * The counts include the total number of reads aligned, they 
   are not limited to uniquely aligned reads.
 * The counts are reads, not pairs or fragments
@@ -245,6 +247,7 @@ pegrna_plots <- function(rna_species, normalization_factor, ylim, ylab) {
   for (s in (sample_units %>%
     arrange(exogenous_rna, day, cell_line) %>%
     filter(exogenous_rna == rna_species))$sample_unit) {
+    
     exogenous_mapped_reads <- bedpe_data %>%
       filter(sample == s) %>%
       select(.data[[normalization_factor]]) %>%
@@ -351,7 +354,7 @@ pegrna_plots(
 pegrna_plots(
   rna_species = "PJY103",
   normalization_factor = "grch38_mapped_reads",
-  ylim = c(0, 0.0012),
+  ylim = c(0, 0.0015),
   ylab = "Coverage (normalized to Human reads)"
 )
 ```
@@ -361,7 +364,7 @@ pegrna_plots(
 pegrna_plots(
   rna_species = "PJY300",
   normalization_factor = "grch38_mapped_reads",
-  ylim = c(0, 0.004),
+  ylim = c(0, 0.008),
   ylab = "Coverage (normalized to Human reads)"
 )
 ```
@@ -374,3 +377,118 @@ No reads found aligning there (three total across all samples)
 ```bash
 for f in results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/*.bam; do echo $f; samtools view $f 20:29,297,095-29,297,246; done
 ```
+
+## Start and End Position Histograms
+
+### Normalized to pegRNA reads
+
+#### PJY103 (pegRNA)
+
+```{r fig.width=12, fig.height=5}
+start_counts_pjy103 <- bedpe_data %>% 
+  dplyr::filter(chrom1 == "PJY103") %>%
+  dplyr::group_by(sample, chrom1, chrom1Start) %>%
+  dplyr::tally(name = "count") %>%
+  mutate(counts_per_pegrna_reads = count / exogenous_rna_mapped_reads) %>%
+  left_join(sample_units, by = c("sample" = "sample_unit"))
+
+start_counts_pjy103_summary <- 
+  plyr::ddply(start_counts_pjy103,
+              c("sample_name", "chrom1Start", "cell_line", "day"),
+              summarise,
+              N = length(counts_per_pegrna_reads),
+              mean = mean(counts_per_pegrna_reads),
+              sd = sd(counts_per_pegrna_reads),
+              se = sd / sqrt(N))
+
+ggplot(start_counts_pjy103_summary,
+       aes(x = chrom1Start, y = mean, color = cell_line, group = 1)) +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 2) +
+  ggtitle("PJY103 START normalized to pegRNA") +
+  xlim(250, 510) +
+  geom_point() +
+  facet_grid(day ~ .)
+```
+
+```{r fig.width=12, fig.height=5}
+end_counts_pjy103 <- bedpe_data %>% 
+  dplyr::filter(chrom1 == "PJY103") %>%
+  dplyr::group_by(sample, chrom1, chrom2End) %>%
+  dplyr::tally(name = "count") %>%
+  mutate(counts_per_pegrna_reads = count / exogenous_rna_mapped_reads) %>%
+  left_join(sample_units, by = c("sample" = "sample_unit"))
+
+end_counts_pjy103_summary <- 
+  plyr::ddply(end_counts_pjy103,
+              c("sample_name", "chrom2End", "cell_line", "day"),
+              summarise,
+              N = length(counts_per_pegrna_reads),
+              mean = mean(counts_per_pegrna_reads),
+              sd = sd(counts_per_pegrna_reads),
+              se = sd / sqrt(N))
+
+ggplot(end_counts_pjy103_summary,
+       aes(x = chrom2End, y = mean, color = cell_line, group = 1)) +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 2) +
+  ggtitle("PJY103 END normalized to pegRNA") +
+  xlim(250, 510) +
+  geom_point() +
+  facet_grid(day ~ .)
+```
+
+
+#### PJY300 (epegRNA)
+
+```{r fig.width=12, fig.height=5}
+start_counts_pjy300 <- bedpe_data %>% 
+  dplyr::filter(chrom1 == "PJY300") %>%
+  dplyr::group_by(sample, chrom1, chrom1Start) %>%
+  dplyr::tally(name = "count") %>%
+  mutate(counts_per_pegrna_reads = count / exogenous_rna_mapped_reads) %>%
+  left_join(sample_units, by = c("sample" = "sample_unit"))
+
+start_counts_pjy300_summary <- 
+  plyr::ddply(start_counts_pjy300,
+              c("sample_name", "chrom1Start", "cell_line", "day"),
+              summarise,
+              N = length(counts_per_pegrna_reads),
+              mean = mean(counts_per_pegrna_reads),
+              sd = sd(counts_per_pegrna_reads),
+              se = sd / sqrt(N))
+
+ggplot(start_counts_pjy300_summary,
+       aes(x = chrom1Start, y = mean, color = cell_line, group = 1)) +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 2) +
+  ggtitle("PJY300 START normalized to pegRNA") +
+  xlim(250, 510) +
+  geom_point() +
+  facet_grid(day ~ .)
+```
+
+```{r fig.width=12, fig.height=5}
+end_counts_pjy300 <- bedpe_data %>% 
+  dplyr::filter(chrom1 == "PJY300") %>%
+  dplyr::group_by(sample, chrom1, chrom2End) %>%
+  dplyr::tally(name = "count") %>%
+  mutate(counts_per_pegrna_reads = count / exogenous_rna_mapped_reads) %>%
+  left_join(sample_units, by = c("sample" = "sample_unit"))
+
+end_counts_pjy300_summary <- 
+  plyr::ddply(end_counts_pjy300,
+              c("sample_name", "chrom2End", "cell_line", "day"),
+              summarise,
+              N = length(counts_per_pegrna_reads),
+              mean = mean(counts_per_pegrna_reads),
+              sd = sd(counts_per_pegrna_reads),
+              se = sd / sqrt(N))
+
+ggplot(end_counts_pjy300_summary,
+       aes(x = chrom2End, y = mean, color = cell_line, group = 1)) +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 2) +
+  ggtitle("PJY300 END normalized to pegRNA") +
+  xlim(250, 510) +
+  geom_point() +
+  facet_grid(day ~ .)
+```
+
+
