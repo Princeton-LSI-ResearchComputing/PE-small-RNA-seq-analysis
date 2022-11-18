@@ -11,7 +11,10 @@ def input_exogenous_mapping(wildcards):
     sample_info = samples.loc[wildcards.sample]
 
     return {
-        "sample": [unit_info.fq1, unit_info.fq2],
+        "sample": [
+            f"results/trimmed/{wildcards.sample}_{wildcards.unit}.1.fastq.gz",
+            f"results/trimmed/{wildcards.sample}_{wildcards.unit}.2.fastq.gz",
+        ],
         "idx": multiext(
             f"data/references/{sample_info.exogenous_rna}",
             ".1.bt2l",
@@ -27,7 +30,6 @@ def input_exogenous_mapping(wildcards):
 def exogenous_unmapped_fastq(wildcards):
     sample_info = samples.loc[wildcards.sample]
 
-    # TODO Can use standardized names here, no need for function
     return {
         "sample": [
             f"results/alignments/{sample_info.exogenous_rna}/unmapped/{wildcards.sample}_{wildcards.unit}.1.fq.gz",
