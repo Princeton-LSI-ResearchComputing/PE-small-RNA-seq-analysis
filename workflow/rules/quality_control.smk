@@ -32,6 +32,21 @@ rule fastqc:
         "v1.18.3/bio/fastqc"
 
 
+rule fastqc_unmapped:
+    input:
+        "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/unmapped/{sample}_{unit}.{readnum}.fq.gz",
+    output:
+        html="results/qc/fastqc_unmapped/{sample}_{unit}.{readnum}.html",
+        zip="results/qc/fastqc_unmapped/{sample}_{unit}.{readnum}_fastqc.zip",
+    log:
+        "results/logs/fastqc_unmapped/{sample}_{unit}.{readnum}.log",
+    threads: 1
+    params:
+        "--quiet",
+    wrapper:
+        "v1.18.3/bio/fastqc"
+
+
 rule samtools_stats:
     input:
         bam="results/alignments/{genome}/sorted/{sample}_{unit}.bam",
@@ -149,5 +164,22 @@ rule multiqc_mapped:
         "",
     log:
         "results/logs/multiqc_{genome}.log",
+    wrapper:
+        "v1.18.3/bio/multiqc"
+
+
+rule multiqc_unmapped:
+    input:
+        expand(
+            "results/qc/fastqc_unmapped/{unit.sample_name}_{unit.unit_name}.{readnum}.html",
+            unit=units.itertuples(),
+            readnum=(1, 2),
+        ),
+    output:
+        "results/qc/multiqc_unmapped.html",
+    params:
+        "",
+    log:
+        "results/logs/multiqc_unmapped.log",
     wrapper:
         "v1.18.3/bio/multiqc"
