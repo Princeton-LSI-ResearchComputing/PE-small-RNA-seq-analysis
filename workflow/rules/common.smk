@@ -27,6 +27,12 @@ def input_exogenous_mapping(wildcards):
     }
 
 
+def input_sample_reference_fasta(wildcards):
+    sample_info = samples.loc[wildcards.sample]
+
+    return f"data/references/{sample_info.exogenous_rna}.fa"
+
+
 def exogenous_unmapped_fastq(wildcards):
     sample_info = samples.loc[wildcards.sample]
 

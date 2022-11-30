@@ -100,6 +100,21 @@ rule all_bedpe:
         ),
 
 
+rule all_riboswitch:
+    input:
+        expand(
+            "results/alignments/exogenous_rna/riboswitch/{sample}_{unit}.{read}.collapsed.fq",
+            sample=units.sample_name,
+            unit=units.unit_name,
+            read=["1", "2"],
+        ),
+        expand(
+            "results/alignments/exogenous_rna/riboswitch/{sample}_{unit}.brc.tsv",
+            sample=units.sample_name,
+            unit=units.unit_name,
+        ),
+
+
 ##### setup container #####
 
 
@@ -123,3 +138,4 @@ include: "rules/trimming.smk"
 include: "rules/mapping.smk"
 include: "rules/quality_control.smk"
 include: "rules/alignment_reporting.smk"
+include: "rules/query_riboswitch.smk"
