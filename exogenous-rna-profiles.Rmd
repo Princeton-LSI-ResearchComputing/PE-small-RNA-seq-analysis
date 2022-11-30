@@ -241,7 +241,7 @@ discordant_cell_line_colors <- list(
   "P1E10" = "#93b168"
 )
 
-pegrna_plots <- function(rna_species, normalization_factor, ylim, ylab) {
+pegrna_plots <- function(rna_species, normalization_factor, ylim, ylab, vlines = NA) {
   par(mfrow = c(2, 1))
 
   for (s in (sample_units %>%
@@ -284,7 +284,7 @@ pegrna_plots <- function(rna_species, normalization_factor, ylim, ylab) {
         type = "l",
         col = concordant_cell_line_colors[[cell_line]],
         ylim = ylim,
-        xlim = c(0, 600),
+        xlim = c(300, 535),
         main = sprintf("Day %s", day),
         xlab = sprintf("%s position", rna_species),
         ylab = ylab
@@ -303,7 +303,7 @@ pegrna_plots <- function(rna_species, normalization_factor, ylim, ylab) {
         col = discordant_cell_line_colors[[cell_line]]
       )
     }
-    legend("topleft",
+    legend("top",
       legend = c(
         "Parental:Concordant",
         "P1E10:Concordant",
@@ -315,8 +315,12 @@ pegrna_plots <- function(rna_species, normalization_factor, ylim, ylab) {
         discordant_cell_line_colors
       )),
       lty = 1,
-      cex = 1.0
+      cex = 0.75
     )
+    for (vline in vlines) {
+      abline(v = vline, lty = 2)
+      text(x = vline, y = 0, as.character(vline), pos = 2, cex = 0.75, lwd = 0.5)
+    }
     last_day <- day
   }
 }
@@ -331,7 +335,8 @@ pegrna_plots(
   rna_species = "PJY103",
   normalization_factor = "exogenous_rna_mapped_reads",
   ylim = c(0, 0.5),
-  ylab = "Coverage (normalized to pegRNA reads)"
+  ylab = "Coverage (normalized to pegRNA reads)",
+  vlines = c(331, 357, 363, 388, 425, 451, 456)
 )
 ```
 #### PJY300 (epegRNA)
@@ -341,7 +346,8 @@ pegrna_plots(
   rna_species = "PJY300",
   normalization_factor = "exogenous_rna_mapped_reads",
   ylim = c(0, 0.5),
-  ylab = "Coverage (normalized to pegRNA reads)"
+  ylab = "Coverage (normalized to pegRNA reads)",
+  vlines = c(331, 371, 425, 471, 498)
 )
 ```
 
@@ -355,7 +361,8 @@ pegrna_plots(
   rna_species = "PJY103",
   normalization_factor = "grch38_mapped_reads",
   ylim = c(0, 0.0015),
-  ylab = "Coverage (normalized to Human reads)"
+  ylab = "Coverage (normalized to Human reads)",
+  vlines = c(331, 357, 363, 388, 425, 451, 456)
 )
 ```
 #### PJY300 (epegRNA)
@@ -365,7 +372,8 @@ pegrna_plots(
   rna_species = "PJY300",
   normalization_factor = "grch38_mapped_reads",
   ylim = c(0, 0.008),
-  ylab = "Coverage (normalized to Human reads)"
+  ylab = "Coverage (normalized to Human reads)",
+  vlines = c(331, 357, 425, 471, 498)
 )
 ```
 ### Normalize to reads mapped to 5.8S rRNA
