@@ -1,0 +1,122 @@
+---
+title: "Adamson small RNA - PJY300 Riboswitch Reads"
+output:
+  html_notebook:
+    toc: true
+    code_folding: hide
+---
+
+## Load libraries
+
+This project uses [`renv`](https://rstudio.github.io/renv/articles/renv.html)
+to keep track of installed packages. Install `renv` if not installed and load
+dependencies with `renv::restore()`.
+
+```r
+install.packages("renv")
+renv::restore()
+```
+
+```{r message=FALSE}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(meltr)
+library(ggplot2)
+library(scales)
+```
+
+
+## Read data
+
+1. Get list of samples
+
+```{r}
+samples <- read_tsv("config/samples.tsv", show_col_types = FALSE)
+units <- read_tsv("config/units.tsv", show_col_types = FALSE)
+sample_units <- dplyr::left_join(samples, units, by = "sample_name") %>%
+  unite(sample_unit, sample_name, unit_name, remove = FALSE)
+```
+
+2. Read BAM Readcount output to get per-base data
+
+
+```{r import-data, cache=TRUE}
+brc_dir <-
+  "results/alignments/exogenous_rna/riboswitch/"
+
+brc_data <- tibble()
+for (sample in sample_units$sample_unit) {
+  brc_file <- sprintf("%s/%s.brc.tsv", brc_dir, sample)
+  num_col <- max(count.fields(brc_file, sep = "\t"))
+  fixed_col <- c("chr", "position", "reference_base", "depth")
+  stats_col <- paste0("X", 1:(num_col - length(fixed_col)))
+  
+  brc_file_data <- meltr::melt_tsv(brc_file) %>%
+    pivot_wider(names_from = col, id_cols = !data_type) %>%
+    magrittr::set_colnames(c("row", fixed_col, stats_col)) %>%
+  pivot_longer(cols = starts_with("X"), values_to = "alternate_base_stats") %>%
+  separate(
+    alternate_base_stats,
+    c(
+      "base",
+      "count",
+      "avg_mapping_quality",
+      "avg_basequality",
+      "avg_se_mapping_quality",
+      "num_plus_strand",
+      "num_minus_strand",
+      "avg_pos_as_fraction",
+      "avg_num_mismatches_as_fraction",
+      "avg_sum_mismatch_qualities",
+      "num_q2_containing_reads",
+      "avg_distance_to_q2_start_in_q2_reads",
+      "avg_clipped_length",
+      "avg_distance_to_effective_3p_end"
+    ),
+    sep = ":", convert = TRUE
+  ) %>%
+  mutate(across(c(position, depth), as.integer)) %>%
+  mutate(sample = sample, .before = row) %>%
+  select(-row) %>%
+  na.omit()
+
+  brc_data <- rbind(brc_data, brc_file_data)
+}
+```
+
+3. Plot counts
+
+```{r prepare_plot_data}
+plot_data <- 
+  brc_data %>%
+  dplyr::filter(grepl('PJY300', sample)) %>%
+  dplyr::filter(count > 0) %>%
+  # riboswitch 454 | 490
+  dplyr::filter(position >= 454 & position <= 490) %>%
+  mutate(plot_base = case_when(
+    base == reference_base ~ "reference",
+    stringr::str_detect(base, "^\\+") ~ "insertion",
+    stringr::str_detect(base, "^-") ~ "deletion",
+    TRUE ~ base)) %>%
+  mutate(plot_base = forcats::fct_relevel(plot_base, "reference", "A", "C", "G", "T", "N", "insertion", "deletion"))
+```
+
+
+```{r plot, fig.width=10, fig.height=20}
+num_colors <- length(unique(plot_data$plot_base))
+plot_colors <- scales::hue_pal()(num_colors)
+plot_colors <- c("#DDDDDD00", plot_colors)
+
+reference <- plot_data %>% select(position, reference_base) %>% unique()
+
+ggplot(
+  plot_data,
+  aes(fill = plot_base, y = count, x = position)) +
+  geom_bar(position = "fill", stat = "identity") +
+  scale_x_continuous(breaks = reference$position, labels = reference$reference_base) +
+  facet_wrap(~ sample, ncol = 1) +
+  scale_fill_manual(values = plot_colors) +
+  xlab("Reference Base") +
+  theme(legend.position = "bottom")
+```
