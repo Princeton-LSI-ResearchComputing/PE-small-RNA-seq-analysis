@@ -113,6 +113,12 @@ rule all_riboswitch:
             sample=units.sample_name,
             unit=units.unit_name,
         ),
+        expand(
+            "results/alignments/exogenous_rna/cross_alignment_check/sorted/{sample}_{unit}_to_{genome}.bam.bai",
+            sample=units.sample_name,
+            unit=units.unit_name,
+            genome=["PJY103", "PJY300"],
+        ),
 
 
 ##### setup container #####

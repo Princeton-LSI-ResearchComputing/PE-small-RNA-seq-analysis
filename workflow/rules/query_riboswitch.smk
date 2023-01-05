@@ -68,3 +68,31 @@ rule riboswtich_reads_collapsed:
             touch {output:q}
         fi
         """
+
+
+rule cross_alignment_check:
+    input:
+        sample=[
+            "results/trimmed/{sample}_{unit}.1.fastq.gz",
+            "results/trimmed/{sample}_{unit}.2.fastq.gz",
+        ],
+        idx=multiext(
+            "data/references/{genome}",
+            ".1.bt2l",
+            ".2.bt2l",
+            ".3.bt2l",
+            ".4.bt2l",
+            ".rev.1.bt2l",
+            ".rev.2.bt2l",
+        ),
+    output:
+        bam=temp(
+            "results/alignments/exogenous_rna/cross_alignment_check/unsorted/{sample}_{unit}_to_{genome}.bam"
+        ),
+    log:
+        "results/logs/bowtie2/exogenous_rna/cross_alignment_check/{sample}_{unit}_to_{genome}.log",
+    params:
+        extra="--no-unal",  # optional parameters
+    threads: 12  # Use at least two threads
+    wrapper:
+        "v1.18.3/bio/bowtie2/align"
