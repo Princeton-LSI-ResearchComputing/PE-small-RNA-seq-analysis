@@ -54,7 +54,7 @@ rule all:
         ),
         expand(
             "data/references/{genome}.fa.fai",
-            genome=("PJY103", "PJY300", "Homo_sapiens.GRCh38.dna.primary_assembly"),
+            genome=("mastermix1", "mastermix2", "Homo_sapiens.GRCh38.dna.primary_assembly"),
         ),
 
 
