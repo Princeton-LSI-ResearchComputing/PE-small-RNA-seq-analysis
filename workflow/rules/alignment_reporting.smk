@@ -8,7 +8,7 @@ rule exogenous_rna_bedpe:
         "results/logs/exogenous_rna_bedpe/{sample}_{unit}.log",
     params:
         samtools_options="-bf 0x2",  # only proper pairs
-        regions="PJY103 PJY300",
+        regions="",
         bedtools_options="-bedpe",
     threads: 2
     group:
