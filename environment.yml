@@ -1,5 +1,5 @@
 ---
-name: adamson-smallRNA
+name: adamson-smallRNA-batch-3
 channels:
     - conda-forge
     - bioconda
