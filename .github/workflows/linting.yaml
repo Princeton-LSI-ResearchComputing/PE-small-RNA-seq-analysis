@@ -59,7 +59,7 @@ jobs:
         uses: github/super-linter/slim@v4
         env:
           VALIDATE_SNAKEMAKE_LINT: false  # Need to install pandas for linting
-          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_ALL_CODEBASE: true
           FILTER_REGEX_EXCLUDE: (\.nb\.html$|renv)
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
