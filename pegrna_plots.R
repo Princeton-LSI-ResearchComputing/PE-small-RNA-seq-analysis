@@ -90,8 +90,11 @@ get_pegrna_plot_data <- function(sequence_name,
     plot_data[[s]] <- list(
       cell_line = cell_line,
       day = day,
+      discordant_granges = discordant,
       discordant = cov_discordant_norm,
-      concordant = cov_concordant_norm
+      concordant_granges = concordant,
+      concordant = cov_concordant_norm,
+      normalization_read_count = normalization_read_count
     )
   }
 
@@ -104,7 +107,8 @@ pegrna_plots <- function(sequence_name,
                          mix = NA,
                          ylim = NA,
                          ylab,
-                         vlines = NA) {
+                         vlines = NA,
+                         start_point = NA) {
   plot_data <- get_pegrna_plot_data(
     sequence_name = sequence_name,
     normalization_factor = normalization_factor,
@@ -129,8 +133,30 @@ pegrna_plots <- function(sequence_name,
   par(mfrow = c(2, 1))
 
   for (s in names(plot_data)) {
-    series_data_concordant <- plot_data[[s]][["concordant"]][[sequence_name]]
-    series_data_discordant <- plot_data[[s]][["discordant"]][[sequence_name]]
+    if (is.na(start_point)) {
+      series_data_concordant <- plot_data[[s]][["concordant"]][[sequence_name]]
+      series_data_discordant <- plot_data[[s]][["discordant"]][[sequence_name]]
+      concordant_legend_text <- "Concordant"
+      discordant_legend_text <- "Discordant"
+    } else {
+      concordant_granges <- plot_data[[s]][["concordant_granges"]]
+      normalization_read_count <- plot_data[[s]][["normalization_read_count"]]
+      start_site <- GRanges(
+        seqnames = rna_species,
+        ranges = IRanges(start = 1, end = start_point)
+      )
+      full_length_granges <- subsetByOverlaps(concordant_granges, start_site)
+      partial_granges <-
+        concordant_granges[concordant_granges %outside% start_site]
+      series_data_concordant <-
+        coverage(full_length_granges)[[sequence_name]] /
+        normalization_read_count
+      series_data_discordant <-
+        coverage(partial_granges)[[sequence_name]] / normalization_read_count
+      concordant_legend_text <- sprintf("Start within %s bp of 5'", start_point)
+      discordant_legend_text <- sprintf("Start after %s bp of 5'", start_point)
+    }
+
 
     day <- plot_data[[s]][["day"]]
     cell_line <- plot_data[[s]][["cell_line"]]
@@ -162,10 +188,10 @@ pegrna_plots <- function(sequence_name,
     }
     legend("top",
       legend = c(
-        "Parental:Concordant",
-        "P1E10:Concordant",
-        "Parental:Discordant",
-        "P1E10:Discordant"
+        sprintf("Parental:%s", concordant_legend_text),
+        sprintf("P1E10:%s", concordant_legend_text),
+        sprintf("Parental:%s", discordant_legend_text),
+        sprintf("P1E10:%s", discordant_legend_text)
       ),
       col = unlist(c(
         concordant_cell_line_colors,
