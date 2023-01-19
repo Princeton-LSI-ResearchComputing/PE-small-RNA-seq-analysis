@@ -198,173 +198,10 @@ for (mix in c("mastermix1", "mastermix2")) {
   ))
 }
 
-get_pegrna_plot_data <- function(sequence_name,
-                                 normalization_factor,
-                                 mix = NA) {
-  samples <- sample_units %>%
-    full_join(rna_mixes, by = "exogenous_rna") %>%
-    arrange(.data$exogenous_rna, day, cell_line) %>%
-    filter(rna_species == sequence_name)
-
-  if (!is.na(mix)) {
-    samples <- samples %>% filter(.data$exogenous_rna == mix)
-  }
-  samples <- samples %>% pull(.data$sample_unit)
-
-  plot_data <- list()
-
-  for (s in samples) {
-    if (normalization_factor == "exogenous_rna_mapped_reads") {
-      norm_seqname <- sequence_name
-    } else if (normalization_factor == "grch38_mapped_reads") {
-      norm_seqname <- "grch38_mapped_reads"
-    }
-    normalization_read_count <- idxstats %>%
-      filter(sample == s) %>%
-      filter(sequence_name == norm_seqname) %>%
-      pull(.data$mapped_reads)
-
-    cell_line <- sample_units %>%
-      filter(.data$sample_unit == s) %>%
-      pull(cell_line)
-
-    day <- sample_units %>%
-      filter(.data$sample_unit == s) %>%
-      pull(day)
-
-    which <- GRanges(sprintf("%s:1-%i", sequence_name, rna_mixes %>%
-      filter(sequence_name == sequence_name) %>%
-      pull(length)))
-    param_discordant <- ScanBamParam(
-      flag = scanBamFlag(isProperPair = FALSE),
-      which = which
-    )
-
-    discordant <- readGAlignments(sprintf("%s/%s.bam", bam_dir, s),
-      param = param_discordant
-    )
-    cov_discordant <- coverage(discordant)
-    cov_discordant_norm <- cov_discordant / normalization_read_count
-
-    which <- GRanges(sprintf("%s:1-%i", sequence_name, rna_mixes %>%
-      filter(sequence_name == sequence_name) %>%
-      pull(length)))
-    param_concordant <- ScanBamParam( # nolint
-      flag = scanBamFlag(isProperPair = TRUE),
-      which = which
-    )
-
-    df_complete <- bedpe_data %>%
-      filter(sample == s) %>%
-      filter(.data$chrom1 == sequence_name)
-    concordant <- GRanges(
-      ranges = IRanges(
-        start = df_complete$chrom1Start,
-        end = df_complete$chrom2End
-      ),
-      seqnames = df_complete$chrom1
-    )
-    cov_concordant <- coverage(concordant)
-    cov_concordant_norm <- cov_concordant / normalization_read_count
-
-    plot_data[[s]] <- list(
-      cell_line = cell_line,
-      day = day,
-      discordant = cov_discordant_norm,
-      concordant = cov_concordant_norm
-    )
-  }
-  return(plot_data)
-}
-
-pegrna_plots <- function(sequence_name,
-                         normalization_factor,
-                         mix = NA,
-                         ylim = NA,
-                         ylab,
-                         vlines = NA) {
-  plot_data <- get_pegrna_plot_data(
-    sequence_name = sequence_name,
-    normalization_factor = normalization_factor,
-    mix = mix
-  )
-
-  # Find largest value for rna_species
-  if (is.na(ylim)) {
-    m <- 0
-    for (s in names(plot_data)) {
-      m <- max(
-        m,
-        max(plot_data[[s]][["concordant"]][[sequence_name]]),
-        max(plot_data[[s]][["discordant"]][[sequence_name]])
-      )
-    }
-    ylim <- c(0, m)
-  }
-
-  last_day <- 0
-
-  par(mfrow = c(2, 1))
-
-  for (s in names(plot_data)) {
-    series_data_concordant <- plot_data[[s]][["concordant"]][[sequence_name]]
-    series_data_discordant <- plot_data[[s]][["discordant"]][[sequence_name]]
-
-    day <- plot_data[[s]][["day"]]
-    cell_line <- plot_data[[s]][["cell_line"]]
-    concordant_color <- concordant_cell_line_colors[[cell_line]]
-    discordant_color <- discordant_cell_line_colors[[cell_line]]
-
-    if (day != last_day) {
-      plot(series_data_concordant,
-        type = "l",
-        col = concordant_color,
-        ylim = ylim,
-        main = sprintf("Day %s", day),
-        xlab = sprintf("%s position", sequence_name),
-        ylab = ylab
-      )
-      lines(series_data_discordant,
-        type = "l",
-        col = discordant_cell_line_colors[[plot_data[[s]][["cell_line"]]]]
-      )
-    } else {
-      lines(series_data_concordant,
-        type = "l",
-        col = concordant_color
-      )
-      lines(series_data_discordant,
-        type = "l",
-        col = discordant_color
-      )
-    }
-    legend("top",
-      legend = c(
-        "Parental:Concordant",
-        "P1E10:Concordant",
-        "Parental:Discordant",
-        "P1E10:Discordant"
-      ),
-      col = unlist(c(
-        concordant_cell_line_colors,
-        discordant_cell_line_colors
-      )),
-      lty = 1,
-      cex = 0.75
-    )
-    for (vline in vlines) {
-      abline(v = vline, lty = 2)
-      text(
-        x = vline, y = 0, as.character(vline),
-        pos = 2, cex = 0.75, lwd = 0.5
-      )
-    }
-    last_day <- day
-  }
-}
+source("pegrna_plots.R")
 ```
 
-### VEGFA
+#### VEGFA
 
 ```{r fig.width=10, fig.height=10}
 rna_mix_rows <- rna_mixes %>% filter(grepl("VEGFA", rna_species))
@@ -384,7 +221,7 @@ for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
 }
 ```
 
-### FANCF
+#### FANCF
 
 ```{r fig.width=10, fig.height=10}
 for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
@@ -400,7 +237,7 @@ for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
 }
 ```
 
-### HEK3
+#### HEK3
 
 ```{r fig.width=10, fig.height=10}
 for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
@@ -435,7 +272,7 @@ for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
 ```
 
 
-### RUNX1
+#### RUNX1
 
 ```{r fig.width=10, fig.height=10}
 for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
@@ -451,7 +288,7 @@ for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
 }
 ```
 
-### EMX1
+#### EMX1
 
 ```{r fig.width=10, fig.height=10}
 for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
@@ -467,7 +304,137 @@ for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
 }
 ```
 
-### RNF2
+#### RNF2
+
+```{r fig.width=10, fig.height=10}
+for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+  for (rna_species in rna_mixes %>%
+    filter(grepl("RNF2", rna_species)) %>%
+    pull(rna_species)) {
+    pegrna_plots(
+      sequence_name = rna_species,
+      normalization_factor = norm_factor,
+      ylab = sprintf("Coverage (normalized to %s)", norm_factor)
+    )
+  }
+}
+```
+
+
+
+### Split by fragement start
+
+#### VEGFA
+
+```{r fig.width=10, fig.height=10}
+rna_mix_rows <- rna_mixes %>% filter(grepl("VEGFA", rna_species))
+
+for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+  for (row in seq_len(nrow(rna_mix_rows))) {
+    rna_species <- rna_mix_rows[[row, "rna_species"]]
+    mix <- rna_mix_rows[[row, "exogenous_rna"]]
+
+    pegrna_plots(
+      sequence_name = rna_species,
+      normalization_factor = norm_factor,
+      mix = mix,
+      ylab = sprintf("%s coverage (normalized to %s)", mix, norm_factor),
+      start_point = 10
+    )
+  }
+}
+```
+
+
+#### FANCF
+
+```{r fig.width=10, fig.height=10}
+for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+  for (rna_species in rna_mixes %>%
+    filter(grepl("FANCF", rna_species)) %>%
+    pull(rna_species)) {
+    pegrna_plots(
+      sequence_name = rna_species,
+      normalization_factor = norm_factor,
+      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+      start_point = 10
+    )
+  }
+}
+```
+
+#### HEK3
+
+```{r fig.width=10, fig.height=10}
+for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+  for (rna_species in rna_mixes %>%
+    filter(grepl("HEK3", rna_species)) %>%
+    pull(rna_species)) {
+    pegrna_plots(
+      sequence_name = rna_species,
+      normalization_factor = norm_factor,
+      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+      start_point = 10
+    )
+  }
+}
+```
+
+
+
+#### DNMT1
+
+```{r fig.width=10, fig.height=10}
+for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+  for (rna_species in rna_mixes %>%
+    filter(grepl("DNMT1", rna_species)) %>%
+    pull(rna_species)) {
+    pegrna_plots(
+      sequence_name = rna_species,
+      normalization_factor = norm_factor,
+      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+      start_point = 10
+    )
+  }
+}
+```
+
+
+#### RUNX1
+
+```{r fig.width=10, fig.height=10}
+for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+  for (rna_species in rna_mixes %>%
+    filter(grepl("RUNX1", rna_species)) %>%
+    pull(rna_species)) {
+    pegrna_plots(
+      sequence_name = rna_species,
+      normalization_factor = norm_factor,
+      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+      start_point = 10
+    )
+  }
+}
+```
+
+#### EMX1
+
+```{r fig.width=10, fig.height=10}
+for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+  for (rna_species in rna_mixes %>%
+    filter(grepl("EMX1", rna_species)) %>%
+    pull(rna_species)) {
+    pegrna_plots(
+      sequence_name = rna_species,
+      normalization_factor = norm_factor,
+      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+      start_point = 10
+    )
+  }
+}
+```
+
+#### RNF2
 
 ```{r fig.width=10, fig.height=10}
 for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
@@ -478,6 +445,7 @@ for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
       sequence_name = rna_species,
       normalization_factor = norm_factor,
       ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+      start_point = 10
     )
   }
 }
