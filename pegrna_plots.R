@@ -201,10 +201,10 @@ pegrna_plots <- function(sequence_name,
       cex = 0.75
     )
     for (vline in vlines) {
-      abline(v = vline, lty = 2)
+      abline(v = vline, lty = 2, lwd = 0.25)
       text(
         x = vline, y = 0, as.character(vline),
-        pos = 2, cex = 0.75, lwd = 0.5
+        pos = 2, offset = 0.25, cex = 0.75,
       )
     }
     last_day <- day

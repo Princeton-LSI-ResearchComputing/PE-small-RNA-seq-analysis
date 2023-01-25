@@ -203,52 +203,70 @@ source("pegrna_plots.R")
 
 #### VEGFA
 
-```{r fig.width=10, fig.height=10}
-rna_mix_rows <- rna_mixes %>% filter(grepl("VEGFA", rna_species))
+```{r fig.width=20, fig.height=10}
+sample_list <- rna_mixes %>% filter(grepl("VEGFA", rna_species))
 
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (row in seq_len(nrow(rna_mix_rows))) {
-    rna_species <- rna_mix_rows[[row, "rna_species"]]
-    mix <- rna_mix_rows[[row, "exogenous_rna"]]
+for (start_point in c(NA, 5)) {
+  for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+    for (i in seq_len(nrow(sample_list))) {
+      rna_species <- sample_list[[i, "rna_species"]]
+      mix <- sample_list[[i, "exogenous_rna"]]
 
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      mix = mix,
-      ylab = sprintf("%s coverage (normalized to %s)", mix, norm_factor),
-    )
+      pegrna_plots(
+        sequence_name = rna_species,
+        normalization_factor = norm_factor,
+        mix = mix,
+        ylab = sprintf("%s coverage (normalized to %s)", mix, norm_factor),
+        vlines = seq(1, sample_list[i, ]$length, 2),
+        start_point = start_point
+      )
+    }
   }
 }
 ```
 
 #### FANCF
 
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("FANCF", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-    )
+```{r fig.width=20, fig.height=10}
+sample_list <- rna_mixes %>% filter(grepl("FANCF", rna_species))
+
+for (start_point in c(NA, 5)) {
+  for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+    for (i in seq_len(nrow(sample_list))) {
+      rna_species <- sample_list[i, ]$rna_species
+      length <- sample_list[i, ]$length
+
+      pegrna_plots(
+        sequence_name = rna_species,
+        normalization_factor = norm_factor,
+        ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+        vlines = seq(1, length, 2),
+        start_point = start_point
+      )
+    }
   }
 }
 ```
 
 #### HEK3
 
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("HEK3", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-    )
+```{r fig.width=20, fig.height=10}
+sample_list <- rna_mixes %>% filter(grepl("HEK3", rna_species))
+
+for (start_point in c(NA, 5)) {
+  for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+    for (i in seq_len(nrow(sample_list))) {
+      rna_species <- sample_list[i, ]$rna_species
+      length <- sample_list[i, ]$length
+
+      pegrna_plots(
+        sequence_name = rna_species,
+        normalization_factor = norm_factor,
+        ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+        vlines = seq(1, length, 2),
+        start_point = start_point
+      )
+    }
   }
 }
 ```
@@ -257,16 +275,23 @@ for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
 
 #### DNMT1
 
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("DNMT1", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-    )
+```{r fig.width=20, fig.height=10}
+sample_list <- rna_mixes %>% filter(grepl("DNMT1", rna_species))
+
+for (start_point in c(NA, 5)) {
+  for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+    for (i in seq_len(nrow(sample_list))) {
+      rna_species <- sample_list[i, ]$rna_species
+      length <- sample_list[i, ]$length
+
+      pegrna_plots(
+        sequence_name = rna_species,
+        normalization_factor = norm_factor,
+        ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+        vlines = seq(1, length, 2),
+        start_point = start_point
+      )
+    }
   }
 }
 ```
@@ -274,179 +299,69 @@ for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
 
 #### RUNX1
 
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("RUNX1", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-    )
+```{r fig.width=20, fig.height=10}
+sample_list <- rna_mixes %>% filter(grepl("RUNX1", rna_species))
+
+for (start_point in c(NA, 5)) {
+  for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+    for (i in seq_len(nrow(sample_list))) {
+      rna_species <- sample_list[i, ]$rna_species
+      length <- sample_list[i, ]$length
+
+      pegrna_plots(
+        sequence_name = rna_species,
+        normalization_factor = norm_factor,
+        ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+        vlines = seq(1, length, 2),
+        start_point = start_point
+      )
+    }
   }
 }
 ```
 
 #### EMX1
 
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("EMX1", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-    )
+```{r fig.width=20, fig.height=10}
+sample_list <- rna_mixes %>% filter(grepl("EMX1", rna_species))
+
+for (start_point in c(NA, 5)) {
+  for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+    for (i in seq_len(nrow(sample_list))) {
+      rna_species <- sample_list[i, ]$rna_species
+      length <- sample_list[i, ]$length
+
+      pegrna_plots(
+        sequence_name = rna_species,
+        normalization_factor = norm_factor,
+        ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+        vlines = seq(1, length, 2),
+        start_point = start_point
+      )
+    }
   }
 }
 ```
 
 #### RNF2
 
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("RNF2", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor)
-    )
-  }
-}
-```
+```{r fig.width=20, fig.height=10}
+sample_list <- rna_mixes %>% filter(grepl("RNF2", rna_species))
 
+for (start_point in c(NA, 5)) {
+  for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+    for (i in seq_len(nrow(sample_list))) {
+      rna_species <- sample_list[i, ]$rna_species
+      length <- sample_list[i, ]$length
 
-
-### Split by fragement start
-
-#### VEGFA
-
-```{r fig.width=10, fig.height=10}
-rna_mix_rows <- rna_mixes %>% filter(grepl("VEGFA", rna_species))
-
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (row in seq_len(nrow(rna_mix_rows))) {
-    rna_species <- rna_mix_rows[[row, "rna_species"]]
-    mix <- rna_mix_rows[[row, "exogenous_rna"]]
-
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      mix = mix,
-      ylab = sprintf("%s coverage (normalized to %s)", mix, norm_factor),
-      start_point = 10
-    )
-  }
-}
-```
-
-
-#### FANCF
-
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("FANCF", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-      start_point = 10
-    )
-  }
-}
-```
-
-#### HEK3
-
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("HEK3", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-      start_point = 10
-    )
-  }
-}
-```
-
-
-
-#### DNMT1
-
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("DNMT1", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-      start_point = 10
-    )
-  }
-}
-```
-
-
-#### RUNX1
-
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("RUNX1", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-      start_point = 10
-    )
-  }
-}
-```
-
-#### EMX1
-
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("EMX1", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-      start_point = 10
-    )
-  }
-}
-```
-
-#### RNF2
-
-```{r fig.width=10, fig.height=10}
-for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
-  for (rna_species in rna_mixes %>%
-    filter(grepl("RNF2", rna_species)) %>%
-    pull(rna_species)) {
-    pegrna_plots(
-      sequence_name = rna_species,
-      normalization_factor = norm_factor,
-      ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-      start_point = 10
-    )
+      pegrna_plots(
+        sequence_name = rna_species,
+        normalization_factor = norm_factor,
+        ylab = sprintf("Coverage (normalized to %s)", norm_factor),
+        vlines = seq(1, length, 2),
+        start_point = start_point
+      )
+    }
   }
 }
 ```
