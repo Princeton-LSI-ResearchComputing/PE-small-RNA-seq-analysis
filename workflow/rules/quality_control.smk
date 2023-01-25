@@ -168,18 +168,14 @@ rule multiqc_mapped:
         "v1.18.3/bio/multiqc"
 
 
-rule multiqc_unmapped:
+rule multiqc_featurecounts:
     input:
-        expand(
-            "results/qc/fastqc_unmapped/{unit.sample_name}_{unit.unit_name}.{readnum}.html",
-            unit=units.itertuples(),
-            readnum=(1, 2),
-        ),
+        "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/featureCounts/all_counts.featureCounts.summary",
     output:
-        "results/qc/multiqc_unmapped.html",
+        "results/qc/multiqc_featurecounts.html",
     params:
         "",
     log:
-        "results/logs/multiqc_unmapped.log",
+        "results/logs/multiqc_featurecounts.log",
     wrapper:
         "v1.18.3/bio/multiqc"

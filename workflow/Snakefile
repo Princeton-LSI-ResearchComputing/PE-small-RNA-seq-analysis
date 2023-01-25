@@ -45,6 +45,7 @@ rule all:
                 "exogenous_rna",
                 "Homo_sapiens.GRCh38.dna.primary_assembly",
                 "unmapped",
+                "featurecounts",
             ),
         ),
         expand(
@@ -59,6 +60,11 @@ rule all:
                 "mastermix2",
                 "Homo_sapiens.GRCh38.dna.primary_assembly",
             ),
+        ),
+        multiext(
+            "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/featureCounts/all_counts",
+            ".featureCounts",
+            ".featureCounts.summary",
         ),
 
 
@@ -91,6 +97,7 @@ rule all_multiqc:
                 "exogenous_rna",
                 "Homo_sapiens.GRCh38.dna.primary_assembly",
                 "unmapped",
+                "featurecounts",
             ),
         ),
 
@@ -125,6 +132,15 @@ rule all_riboswitch:
         ),
 
 
+rule all_quantify:
+    input:
+        multiext(
+            "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/featureCounts/all_counts",
+            ".featureCounts",
+            ".featureCounts.summary",
+        ),
+
+
 ##### setup container #####
 
 
@@ -149,3 +165,4 @@ include: "rules/mapping.smk"
 include: "rules/quality_control.smk"
 include: "rules/alignment_reporting.smk"
 include: "rules/query_riboswitch.smk"
+include: "rules/quantify.smk"

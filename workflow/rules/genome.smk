@@ -19,13 +19,28 @@ rule fetch_grch38:
         shell("mv {input:q} {output:q} &> {log:q}")
 
 
+rule fetch_grch38_gtf:
+    input:
+        # only keeping the file so we can move it out to the cwd
+        FTP.remote(
+            "https://ftp.ensembl.org/pub/release-108/gtf/homo_sapiens/Homo_sapiens.GRCh38.108.gtf.gz",
+            keep_local=True,
+        ),
+    output:
+        "data/references/Homo_sapiens.GRCh38.108.gtf.gz",
+    log:
+        "results/logs/fetch_grch38_gff.log",
+    run:
+        shell("mv {input:q} {output:q} &> {log:q}")
+
+
 rule unzip:
     input:
-        "data/references/{genome}.fa.gz",
+        "data/references/{genome_file}.gz",
     output:
-        "data/references/{genome}.fa",
+        "data/references/{genome_file}",
     log:
-        "results/logs/unzip/{genome}.txt",
+        "results/logs/unzip/{genome_file}.txt",
     conda:
         "../envs/gzip.yaml"
     shell:
