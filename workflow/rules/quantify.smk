@@ -19,7 +19,7 @@ rule feature_counts:
     params:
         strand=0,  # optional; strandness of the library (0: unstranded [default], 1: stranded, and 2: reversely stranded)
         r_path="",  # implicitly sets the --Rpath flag
-        # extra="-O --fracOverlap 0.2 -J",
+        extra="--primary",  # count all primary alignments, even if reads are multimapped
     log:
         "results/logs/featureCounts/Homo_sapiens.GRCh38.dna.primary_assembly/all_counts.log",
     wrapper:
