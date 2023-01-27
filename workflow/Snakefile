@@ -49,15 +49,16 @@ rule all:
             ),
         ),
         expand(
-            "results/alignments/exogenous_rna/bedpe/{sample}_{unit}.bedpe",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/exogenous_rna/bedpe/{unit.sample_name}_{unit.unit_name}.bedpe",
+            unit=units.itertuples(),
         ),
         expand(
             "data/references/{genome}.fa.fai",
             genome=(
                 "mastermix1",
                 "mastermix2",
+                "PJY103",
+                "PJY300",
                 "Homo_sapiens.GRCh38.dna.primary_assembly",
             ),
         ),
@@ -71,9 +72,8 @@ rule all:
 rule all_trimming:
     input:
         expand(
-            "results/trimmed/{sample}_{unit}.{read}.fastq.gz",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/trimmed/{unit.sample_name}_{unit.unit_name}.{read}.fastq.gz",
+            unit=units.itertuples(),
             read=["1", "2"],
         ),
 
@@ -81,9 +81,8 @@ rule all_trimming:
 rule all_mapping:
     input:
         expand(
-            "results/alignments/{genome}/sorted/{sample}_{unit}.bam",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/{genome}/sorted/{unit.sample_name}_{unit.unit_name}.bam",
+            unit=units.itertuples(),
             genome=("Homo_sapiens.GRCh38.dna.primary_assembly", "exogenous_rna"),
         ),
 
@@ -105,29 +104,25 @@ rule all_multiqc:
 rule all_bedpe:
     input:
         expand(
-            "results/alignments/exogenous_rna/bedpe/{sample}_{unit}.bedpe",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/exogenous_rna/bedpe/{unit.sample_name}_{unit.unit_name}.bedpe",
+            unit=units.itertuples(),
         ),
 
 
 rule all_riboswitch:
     input:
         expand(
-            "results/alignments/exogenous_rna/riboswitch/{sample}_{unit}.{read}.collapsed.fq",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/exogenous_rna/riboswitch/{unit.sample_name}_{unit.unit_name}.{read}.collapsed.fq",
+            unit=units.itertuples(),
             read=["1", "2"],
         ),
         expand(
-            "results/alignments/exogenous_rna/riboswitch/{sample}_{unit}.brc.tsv",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/exogenous_rna/riboswitch/{unit.sample_name}_{unit.unit_name}.brc.tsv",
+            unit=units.itertuples(),
         ),
         expand(
-            "results/alignments/exogenous_rna/cross_alignment_check/sorted/{sample}_{unit}_to_{genome}.bam.bai",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/exogenous_rna/cross_alignment_check/sorted/{unit.sample_name}_{unit.unit_name}_to_{genome}.bam.bai",
+            unit=units.itertuples(),
             genome=["PJY103", "PJY300"],
         ),
 
