@@ -17,5 +17,5 @@ indent_size = 2
 [*.tsv]
 indent_style = tab
 
-[*.{md,Rmd,R}]
+[*.{md,qmd,Rmd,R}]
 indent_size = unset
