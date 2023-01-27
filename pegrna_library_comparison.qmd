@@ -1,0 +1,292 @@
+---
+title: "pegRNA Library Comparison"
+author: "Lance Parsons"
+format:
+  html:
+    toc: true
+    code-fold: true
+    df-print: paged
+    embed-resources: true
+editor: source
+---
+
+```{r}
+#| label: load-packages
+#| include: false
+#| message: false
+library(readr)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(tibble)
+library(pheatmap)
+library(ggplot2)
+library(DESeq2)
+library(apeglm)
+library(EnsDb.Hsapiens.v86)
+library(RColorBrewer)
+```
+
+## Read data
+
+1. Get list of samples
+
+```{r}
+samples <- read_tsv("config/samples.tsv",
+  col_types = list(
+    sample_name = col_character(),
+    cell_line = col_factor(),
+    exogenous_rna = col_factor(),
+    day = col_factor()
+  )
+)
+units <- read_tsv("config/units.tsv",
+  col_types = list(
+    sample_name = col_character(),
+    unit_name = col_character(),
+    fq1 = col_character(),
+    fq2 = col_character()
+  )
+)
+sample_units <- dplyr::left_join(samples, units, by = "sample_name") %>%
+  unite(sample_unit, sample_name, unit_name, remove = FALSE)
+sample_units
+```
+
+2. Read Samtools `idxstats` to get human coverage for normalization
+
+Notes:
+
+* The counts include the total number of reads aligned, they 
+  are not limited to uniquely aligned reads.
+* The counts are reads, not pairs or fragments
+
+```{r}
+idxstats_exogenousrna_dir <-
+  "results/samtools_idxstats/exogenous_rna/"
+
+idxstats_human_dir <-
+  "results/samtools_idxstats/Homo_sapiens.GRCh38.dna.primary_assembly/"
+
+bowtie2_human_logs <-
+  "results/logs/bowtie2/Homo_sapiens.GRCh38.dna.primary_assembly/"
+
+idxstats <- tibble()
+
+for (row in seq_len(nrow(sample_units))) {
+  sample <- sample_units[row, ]$sample_unit
+
+  # Read `idsxstats` for exogenous mapped reads
+  exogenous_rna_stats <- read_tsv(
+    file.path(idxstats_exogenousrna_dir, sprintf("%s.bam.idxstats", sample)),
+    col_names = c(
+      "sequence_name", "sequence_length",
+      "mapped_reads", "unmapped_reads"
+    ),
+    col_types = "ciii"
+  )
+  exogenous_rna_mapped_reads <- exogenous_rna_stats %>%
+    dplyr::filter(!sequence_name %in% c("*")) %>%
+    dplyr::select(sequence_name, mapped_reads) %>%
+    dplyr::mutate(sample = sample)
+
+  # Read `idxstats` for human mapped reads
+  human_stats <- read_tsv(
+    file.path(idxstats_human_dir, sprintf("%s.bam.idxstats", sample)),
+    col_names = c(
+      "sequence_name", "sequence_length",
+      "mapped_reads", "unmapped_reads"
+    ),
+    col_types = "ciii"
+  )
+  grch38_mapped_reads <- human_stats %>%
+    dplyr::filter(!sequence_name %in% c("*")) %>%
+    dplyr::select(mapped_reads) %>%
+    sum()
+  grch38_mapped_reads <- tibble(
+    sequence_name = "grch38_mapped_reads",
+    mapped_reads = grch38_mapped_reads,
+    sample = sample
+  )
+
+  # Read bowtie2 logs for unmapped reads
+  bowtie2_log <- readLines(
+    file.path(bowtie2_human_logs, sprintf("%s.log", sample))
+  )
+  total_pairs <- strtoi(str_split(bowtie2_log[1], " ")[[1]][1])
+  total_reads <- total_pairs * 2
+  unmapped_reads <- tibble(
+    sequence_name = "unmapped",
+    mapped_reads = total_reads - grch38_mapped_reads$mapped_reads,
+    sample = sample
+  )
+
+  # Consolidate counts for rows
+  idxstats <- rbind(
+    idxstats,
+    exogenous_rna_mapped_reads,
+    grch38_mapped_reads,
+    unmapped_reads
+  )
+}
+idxstats
+```
+
+
+## Sample Correlation
+
+### BAM Correlation
+
+Divide the human genome into bins, determine the counts in each of those bins and calculate the correlation between samples.
+
+*Note:* May need to remove zero count bins
+
+### Correlation of gene counts
+
+Using featureCounts, we generated fragment counts for "exon" features in the Ensemble hg38 annotation. Primary alignments were counted, even if the fragements were mulitmappers.
+
+```{r}
+featureCounts <- readr::read_tsv(
+  "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/featureCounts/all_counts.featureCounts",
+  comment = "#",
+  col_types = list(
+    Geneid = col_character(),
+    Chr = col_character(),
+    Start = col_character(),
+    End = col_character(),
+    Strand = col_character(),
+    .default = col_integer()
+  )
+) %>%
+  rename_all(~ stringr::str_replace_all(
+    ., "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/", ""
+  )) %>%
+  rename_all(~ stringr::str_replace_all(., ".bam", ""))
+featureCounts
+```
+
+```{r}
+dds <- DESeqDataSetFromMatrix(
+  countData = featureCounts %>%
+    tibble::column_to_rownames("Geneid") %>%
+    dplyr::select(!Chr:Length),
+  colData = sample_units,
+  design = ~ exogenous_rna + day + cell_line
+)
+dds
+```
+#### Variance Stabalized Transformation
+
+```{r}
+vsd <- vst(dds, blind = FALSE)
+```
+
+#### Heatmap of sample-to-sample distances
+
+```{r}
+sampleDists <- dist(t(assay(vsd)))
+
+sampleDistMatrix <- as.matrix(sampleDists)
+rownames(sampleDistMatrix) <- paste(vsd$cell_line,
+  vsd$exogenous_rna,
+  paste0("day", vsd$day),
+  sep = "-"
+)
+colnames(sampleDistMatrix) <- NULL
+colors <- colorRampPalette(rev(brewer.pal(9, "Blues")))(255)
+pheatmap(sampleDistMatrix,
+  clustering_distance_rows = sampleDists,
+  clustering_distance_cols = sampleDists,
+  col = colors
+)
+```
+
+## Differetial Expression
+
+### Default DESeq2 size factors
+
+```{r}
+dds <- DESeq(dds)
+res <- results(dds, alpha = 0.05)
+summary(res)
+```
+
+```{r}
+resLFC <- lfcShrink(dds, coef="cell_line_P1E10_vs_Parental", type="apeglm")
+```
+
+```{r}
+plotMA(res, ylim=c(-5,5))
+```
+
+```{r}
+plotMA(resLFC, ylim=c(-5,5))
+```
+
+```{r}
+plotCounts(dds, gene=which.min(res$padj), intgroup="cell_line")
+```
+
+### Reads mapped to hg38 size factors
+
+```{r}
+hg38_size_factors <- idxstats %>%
+  dplyr::filter(sequence_name == "grch38_mapped_reads") %>%
+  dplyr::select(sample, mapped_reads) %>%
+  deframe()
+sizeFactors(dds) <- (hg38_size_factors / median(hg38_size_factors))
+dds
+```
+```{r}
+dds <- DESeq(dds)
+res <- results(dds, alpha = 0.05)
+summary(res)
+```
+
+
+```{r}
+resLFC <- lfcShrink(dds, coef="cell_line_P1E10_vs_Parental", type="apeglm")
+```
+
+
+```{r}
+plotMA(res, ylim=c(-5,5))
+```
+
+
+
+```{r}
+plotMA(resLFC, ylim=c(-5,5))
+```
+
+
+```{r}
+plotCounts(dds, gene=which.min(res$padj), intgroup="cell_line")
+```
+
+## Gene Biotype
+
+For each `gene_id` in the featureCounts table, we look up the `gene_biotype` from Ensembl.
+
+```{r}
+hg38 <- EnsDb.Hsapiens.v86
+hg38_genes <- genes(hg38, return.type = "data.frame")
+
+counts_by_biotype <- featureCounts %>%
+  full_join(hg38_genes %>% dplyr::select(gene_id, gene_biotype),
+    by = c("Geneid" = "gene_id")
+  ) %>%
+  group_by(gene_biotype) %>%
+  dplyr::select("gene_biotype", !c(Geneid, Chr, Start, End, Strand, Length)) %>%
+  summarise_all(list(count = sum)) %>%
+  tidyr::pivot_longer(!gene_biotype, names_to = "sample", values_to = "count")
+counts_by_biotype
+```
+
+
+```{r fig.height=7}
+p <- ggplot(data = subset(counts_by_biotype, !is.na(count)), aes(x = sample, y = count, fill = gene_biotype)) +
+  geom_bar(stat = "identity", position = "fill") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+p
+```
