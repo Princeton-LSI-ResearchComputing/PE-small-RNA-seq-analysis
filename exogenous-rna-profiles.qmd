@@ -10,7 +10,7 @@ format:
 editor: source
 ---
 
-## Load libraries
+# Load libraries
 
 This project uses [`renv`](https://rstudio.github.io/renv/articles/renv.html)
 to keep track of installed packages. Install `renv` if not installed and load
@@ -21,7 +21,10 @@ install.packages("renv")
 renv::restore()
 ```
 
-```{r message=FALSE}
+```{r}
+#| label: load-packages
+#| include: false
+#| message: false
 library(readr)
 library(dplyr)
 library(tidyr)
@@ -38,7 +41,7 @@ library(GenomicAlignments)
 library(reshape2)
 ```
 
-## Read data
+# Read data
 
 1. Get list of samples
 
@@ -129,37 +132,9 @@ for (row in seq_len(nrow(sample_units))) {
 idxstats
 ```
 
-3. Read `bedpe` files to get exogenous rna coverage of paired reads
+# Coverage
 
-```{r}
-bedpe_data <- tibble()
-for (sample in sample_units$sample_unit) {
-  data <-
-    readr::read_tsv(
-      sprintf(
-        "results/alignments/exogenous_rna/bedpe/%s.bedpe", sample
-      ),
-      col_names = c(
-        "chrom1", "chrom1Start", "chrom1End",
-        "chrom2", "chrom2Start", "chrom2End",
-        "name", "score", "strand1", "strand2"
-      ),
-      col_types = "ciiciicicc"
-    )
-  bedpe_data <- tibble(rbind(
-    bedpe_data,
-    cbind(
-      sample = sample,
-      data
-    )
-  ))
-}
-bedpe_data
-```
-
-## Coverage
-
-### Concordant vs Discordant paired reads
+## Concordant vs Discordant paired reads
 
 Concordant pairs are pairs of reads that:
 
@@ -193,24 +168,34 @@ discordant_cell_line_colors <- list(
 
 # Exogenous RNA mixtures
 rna_mixes <- tibble()
-for (mix in c("mastermix1", "mastermix2")) {
+for (mix in c("mastermix1", "mastermix2", "PJY103", "PJY300")) {
   t <- readDNAStringSet(sprintf("data/references/%s.fa", mix))
   rna_mixes <- rbind(rna_mixes, tibble(
     exogenous_rna = mix,
     rna_species = word(t@ranges@NAMES, 1),
-    length = t@ranges@width
+    start = 1,
+    end = t@ranges@width
   ))
 }
+rna_mixes <- rna_mixes %>%
+  rows_update(tibble(exogenous_rna = "PJY103", start = 331, end = 460),
+    by = "exogenous_rna"
+  ) %>%
+  rows_update(tibble(exogenous_rna = "PJY300", start = 331, end = 497),
+    by = "exogenous_rna"
+  )
+rna_mixes
 
 source("pegrna_plots.R")
 ```
 
-#### VEGFA
+## PJY103 / PJY300 (Batch 2)
 
 ```{r fig.width=20, fig.height=10}
-sample_list <- rna_mixes %>% filter(grepl("VEGFA", rna_species))
+#| warning: false
+sample_list <- rna_mixes %>% filter(grepl("PJY103|PJY300", rna_species))
 
-for (start_point in c(NA, 5)) {
+for (start_offset in c(NA, 5)) {
   for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
     for (i in seq_len(nrow(sample_list))) {
       rna_species <- sample_list[[i, "rna_species"]]
@@ -221,54 +206,74 @@ for (start_point in c(NA, 5)) {
         normalization_factor = norm_factor,
         mix = mix,
         ylab = sprintf("%s coverage (normalized to %s)", mix, norm_factor),
-        vlines = seq(1, sample_list[i, ]$length, 2),
-        start_point = start_point
+        vlines = seq(sample_list[i, ]$start, sample_list[i, ]$end, 2),
+        start_offset = start_offset
       )
     }
   }
 }
 ```
 
-#### FANCF
+## VEGFA
+
+```{r fig.width=20, fig.height=10}
+sample_list <- rna_mixes %>% filter(grepl("VEGFA", rna_species))
+
+for (start_offset in c(NA, 5)) {
+  for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
+    for (i in seq_len(nrow(sample_list))) {
+      rna_species <- sample_list[[i, "rna_species"]]
+      mix <- sample_list[[i, "exogenous_rna"]]
+
+      pegrna_plots(
+        sequence_name = rna_species,
+        normalization_factor = norm_factor,
+        mix = mix,
+        ylab = sprintf("%s coverage (normalized to %s)", mix, norm_factor),
+        vlines = seq(sample_list[i, ]$start, sample_list[i, ]$end, 2),
+        start_offset = start_offset
+      )
+    }
+  }
+}
+```
+
+## FANCF
 
 ```{r fig.width=20, fig.height=10}
 sample_list <- rna_mixes %>% filter(grepl("FANCF", rna_species))
 
-for (start_point in c(NA, 5)) {
+for (start_offset in c(NA, 5)) {
   for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
     for (i in seq_len(nrow(sample_list))) {
       rna_species <- sample_list[i, ]$rna_species
-      length <- sample_list[i, ]$length
-
       pegrna_plots(
         sequence_name = rna_species,
         normalization_factor = norm_factor,
         ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-        vlines = seq(1, length, 2),
-        start_point = start_point
+        vlines = seq(sample_list[i, ]$start, sample_list[i, ]$end, 2),
+        start_offset = start_offset
       )
     }
   }
 }
 ```
 
-#### HEK3
+## HEK3
 
 ```{r fig.width=20, fig.height=10}
 sample_list <- rna_mixes %>% filter(grepl("HEK3", rna_species))
 
-for (start_point in c(NA, 5)) {
+for (start_offset in c(NA, 5)) {
   for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
     for (i in seq_len(nrow(sample_list))) {
       rna_species <- sample_list[i, ]$rna_species
-      length <- sample_list[i, ]$length
-
       pegrna_plots(
         sequence_name = rna_species,
         normalization_factor = norm_factor,
         ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-        vlines = seq(1, length, 2),
-        start_point = start_point
+        vlines = seq(sample_list[i, ]$start, sample_list[i, ]$end, 2),
+        start_offset = start_offset
       )
     }
   }
@@ -277,23 +282,21 @@ for (start_point in c(NA, 5)) {
 
 
 
-#### DNMT1
+## DNMT1
 
 ```{r fig.width=20, fig.height=10}
 sample_list <- rna_mixes %>% filter(grepl("DNMT1", rna_species))
 
-for (start_point in c(NA, 5)) {
+for (start_offset in c(NA, 5)) {
   for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
     for (i in seq_len(nrow(sample_list))) {
       rna_species <- sample_list[i, ]$rna_species
-      length <- sample_list[i, ]$length
-
       pegrna_plots(
         sequence_name = rna_species,
         normalization_factor = norm_factor,
         ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-        vlines = seq(1, length, 2),
-        start_point = start_point
+        vlines = seq(sample_list[i, ]$start, sample_list[i, ]$end, 2),
+        start_offset = start_offset
       )
     }
   }
@@ -301,71 +304,86 @@ for (start_point in c(NA, 5)) {
 ```
 
 
-#### RUNX1
+## RUNX1
 
 ```{r fig.width=20, fig.height=10}
 sample_list <- rna_mixes %>% filter(grepl("RUNX1", rna_species))
 
-for (start_point in c(NA, 5)) {
+for (start_offset in c(NA, 5)) {
   for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
     for (i in seq_len(nrow(sample_list))) {
       rna_species <- sample_list[i, ]$rna_species
-      length <- sample_list[i, ]$length
-
       pegrna_plots(
         sequence_name = rna_species,
         normalization_factor = norm_factor,
         ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-        vlines = seq(1, length, 2),
-        start_point = start_point
+        vlines = seq(sample_list[i, ]$start, sample_list[i, ]$end, 2),
+        start_offset = start_offset
       )
     }
   }
 }
 ```
 
-#### EMX1
+## EMX1
 
 ```{r fig.width=20, fig.height=10}
 sample_list <- rna_mixes %>% filter(grepl("EMX1", rna_species))
 
-for (start_point in c(NA, 5)) {
+for (start_offset in c(NA, 5)) {
   for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
     for (i in seq_len(nrow(sample_list))) {
       rna_species <- sample_list[i, ]$rna_species
-      length <- sample_list[i, ]$length
-
       pegrna_plots(
         sequence_name = rna_species,
         normalization_factor = norm_factor,
         ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-        vlines = seq(1, length, 2),
-        start_point = start_point
+        vlines = seq(sample_list[i, ]$start, sample_list[i, ]$end, 2),
+        start_offset = start_offset
       )
     }
   }
 }
 ```
 
-#### RNF2
+## RNF2
 
 ```{r fig.width=20, fig.height=10}
 sample_list <- rna_mixes %>% filter(grepl("RNF2", rna_species))
 
-for (start_point in c(NA, 5)) {
+for (start_offset in c(NA, 5)) {
   for (norm_factor in c("exogenous_rna_mapped_reads", "grch38_mapped_reads")) {
     for (i in seq_len(nrow(sample_list))) {
       rna_species <- sample_list[i, ]$rna_species
-      length <- sample_list[i, ]$length
-
       pegrna_plots(
         sequence_name = rna_species,
         normalization_factor = norm_factor,
         ylab = sprintf("Coverage (normalized to %s)", norm_factor),
-        vlines = seq(1, length, 2),
-        start_point = start_point
+        vlines = seq(sample_list[i, ]$start, sample_list[i, ]$end, 2),
+        start_offset = start_offset
       )
     }
   }
+}
+```
+
+# Strandedness
+
+```{r}
+#| warning: false
+source("pegrna_alignment_strandedness.R")
+for (rna_species in rna_mixes %>%
+  select(rna_species) %>%
+  unique() %>%
+  pull()) {
+  stranded_counts <- pegrna_alignment_strandedness(sequence_name = rna_species)
+  p <- ggplot(
+    data = stranded_counts,
+    aes(x = sample_unit, y = count, fill = strand)
+  ) +
+    geom_bar(stat = "identity") +
+    labs(title = rna_species) +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+  print(p)
 }
 ```

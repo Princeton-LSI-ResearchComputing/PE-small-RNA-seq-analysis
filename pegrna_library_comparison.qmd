@@ -14,17 +14,19 @@ editor: source
 #| label: load-packages
 #| include: false
 #| message: false
-library(readr)
-library(dplyr)
-library(tidyr)
-library(stringr)
-library(tibble)
-library(pheatmap)
-library(ggplot2)
-library(DESeq2)
-library(apeglm)
-library(EnsDb.Hsapiens.v86)
-library(RColorBrewer)
+library("readr")
+library("dplyr")
+library("tidyr")
+library("stringr")
+library("tibble")
+library("pheatmap")
+library("ggplot2")
+library("DESeq2")
+library("apeglm")
+library("EnsDb.Hsapiens.v86")
+library("RColorBrewer")
+library("BiocParallel")
+register(MulticoreParam(4))
 ```
 
 ## Read data
@@ -146,8 +148,11 @@ Divide the human genome into bins, determine the counts in each of those bins an
 Using featureCounts, we generated fragment counts for "exon" features in the Ensemble hg38 annotation. Primary alignments were counted, even if the fragements were mulitmappers.
 
 ```{r}
-featureCounts <- readr::read_tsv(
-  "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/featureCounts/all_counts.featureCounts",
+feature_counts <- readr::read_tsv(
+  paste0(
+    "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/",
+    "featureCounts/all_counts.featureCounts"
+  ),
   comment = "#",
   col_types = list(
     Geneid = col_character(),
@@ -162,12 +167,12 @@ featureCounts <- readr::read_tsv(
     ., "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/", ""
   )) %>%
   rename_all(~ stringr::str_replace_all(., ".bam", ""))
-featureCounts
+feature_counts
 ```
 
 ```{r}
 dds <- DESeqDataSetFromMatrix(
-  countData = featureCounts %>%
+  countData = feature_counts %>%
     tibble::column_to_rownames("Geneid") %>%
     dplyr::select(!Chr:Length),
   colData = sample_units,
@@ -184,19 +189,21 @@ vsd <- vst(dds, blind = FALSE)
 #### Heatmap of sample-to-sample distances
 
 ```{r}
-sampleDists <- dist(t(assay(vsd)))
+#| fig-height: 8
+#| fig-width: 6
+sample_dists <- dist(t(assay(vsd)))
 
-sampleDistMatrix <- as.matrix(sampleDists)
-rownames(sampleDistMatrix) <- paste(vsd$cell_line,
+sample_dist_matrix <- as.matrix(sample_dists)
+rownames(sample_dist_matrix) <- paste(vsd$cell_line,
   vsd$exogenous_rna,
   paste0("day", vsd$day),
   sep = "-"
 )
-colnames(sampleDistMatrix) <- NULL
+colnames(sample_dist_matrix) <- NULL
 colors <- colorRampPalette(rev(brewer.pal(9, "Blues")))(255)
-pheatmap(sampleDistMatrix,
-  clustering_distance_rows = sampleDists,
-  clustering_distance_cols = sampleDists,
+pheatmap(sample_dist_matrix,
+  clustering_distance_rows = sample_dists,
+  clustering_distance_cols = sample_dists,
   col = colors
 )
 ```
@@ -206,25 +213,28 @@ pheatmap(sampleDistMatrix,
 ### Default DESeq2 size factors
 
 ```{r}
-dds <- DESeq(dds)
+dds <- DESeq(dds, parallel = TRUE)
 res <- results(dds, alpha = 0.05)
 summary(res)
 ```
 
 ```{r}
-resLFC <- lfcShrink(dds, coef="cell_line_P1E10_vs_Parental", type="apeglm")
+res_lfc <- lfcShrink(dds,
+  coef = "cell_line_P1E10_vs_Parental",
+  type = "apeglm", parallel = TRUE
+)
 ```
 
 ```{r}
-plotMA(res, ylim=c(-5,5))
+plotMA(res, ylim = c(-5, 5))
 ```
 
 ```{r}
-plotMA(resLFC, ylim=c(-5,5))
+plotMA(res_lfc, ylim = c(-5, 5))
 ```
 
 ```{r}
-plotCounts(dds, gene=which.min(res$padj), intgroup="cell_line")
+plotCounts(dds, gene = which.min(res$padj), intgroup = "cell_line")
 ```
 
 ### Reads mapped to hg38 size factors
@@ -238,30 +248,33 @@ sizeFactors(dds) <- (hg38_size_factors / median(hg38_size_factors))
 dds
 ```
 ```{r}
-dds <- DESeq(dds)
+dds <- DESeq(dds, parallel = TRUE)
 res <- results(dds, alpha = 0.05)
 summary(res)
 ```
 
 
 ```{r}
-resLFC <- lfcShrink(dds, coef="cell_line_P1E10_vs_Parental", type="apeglm")
+res_lfc <- lfcShrink(dds,
+  coef = "cell_line_P1E10_vs_Parental",
+  type = "apeglm", parallel = TRUE
+)
 ```
 
 
 ```{r}
-plotMA(res, ylim=c(-5,5))
+plotMA(res, ylim = c(-5, 5))
 ```
 
 
 
 ```{r}
-plotMA(resLFC, ylim=c(-5,5))
+plotMA(res_lfc, ylim = c(-5, 5))
 ```
 
 
 ```{r}
-plotCounts(dds, gene=which.min(res$padj), intgroup="cell_line")
+plotCounts(dds, gene = which.min(res$padj), intgroup = "cell_line")
 ```
 
 ## Gene Biotype
@@ -272,7 +285,7 @@ For each `gene_id` in the featureCounts table, we look up the `gene_biotype` fro
 hg38 <- EnsDb.Hsapiens.v86
 hg38_genes <- genes(hg38, return.type = "data.frame")
 
-counts_by_biotype <- featureCounts %>%
+counts_by_biotype <- feature_counts %>%
   full_join(hg38_genes %>% dplyr::select(gene_id, gene_biotype),
     by = c("Geneid" = "gene_id")
   ) %>%
@@ -285,7 +298,10 @@ counts_by_biotype
 
 
 ```{r fig.height=7}
-p <- ggplot(data = subset(counts_by_biotype, !is.na(count)), aes(x = sample, y = count, fill = gene_biotype)) +
+p <- ggplot(
+  data = subset(counts_by_biotype, !is.na(count)),
+  aes(x = sample, y = count, fill = gene_biotype)
+) +
   geom_bar(stat = "identity", position = "fill") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 p
