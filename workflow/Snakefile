@@ -62,10 +62,10 @@ rule all:
                 "Homo_sapiens.GRCh38.dna.primary_assembly",
             ),
         ),
-        multiext(
-            "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/featureCounts/all_counts",
-            ".featureCounts",
-            ".featureCounts.summary",
+        expand(
+            "results/featureCounts/rna_central/{unit.sample_name}_{unit.unit_name}.{ext}",
+            unit=units.itertuples(),
+            ext=["featureCounts", "featureCounts.summary"],
         ),
 
 
@@ -129,10 +129,10 @@ rule all_riboswitch:
 
 rule all_quantify:
     input:
-        multiext(
-            "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/featureCounts/all_counts",
-            ".featureCounts",
-            ".featureCounts.summary",
+        expand(
+            "results/featureCounts/rna_central/{unit.sample_name}_{unit.unit_name}.{ext}",
+            unit=units.itertuples(),
+            ext=["featureCounts", "featureCounts.summary"],
         ),
 
 
