@@ -20,7 +20,7 @@ rule bowtie2_build_large:
         time="06:00:00",
         mem_mb=16000,
     wrapper:
-        "v1.18.3/bio/bowtie2/build"
+        "v1.23.3/bio/bowtie2/build"
 
 
 rule bowtie2_exogenous_rna:
@@ -36,7 +36,7 @@ rule bowtie2_exogenous_rna:
         extra=lambda wildcards, output: f"--un-conc-gz {output['unmapped_fq1'][:-8]}.%.fq.gz --no-unal",  # optional parameters
     threads: 12  # Use at least two threads
     wrapper:
-        "v1.18.3/bio/bowtie2/align"
+        "v1.23.3/bio/bowtie2/align"
 
 
 rule bowtie2_hg38:
@@ -66,7 +66,7 @@ rule bowtie2_hg38:
         extra=lambda wildcards, output: f"--un-conc-gz {output['unmapped_fq1'][:-8]}.%.fq.gz --no-unal",  # optional parameters
     threads: 12  # Use at least two threads
     wrapper:
-        "v1.18.3/bio/bowtie2/align"
+        "v1.23.3/bio/bowtie2/align"
 
 
 rule samtools_sort:
@@ -82,4 +82,4 @@ rule samtools_sort:
     resources:
         mem_mb=16000,
     wrapper:
-        "v1.18.3/bio/samtools/sort"
+        "v1.23.3/bio/samtools/sort"

@@ -62,11 +62,11 @@ rule all:
                 "Homo_sapiens.GRCh38.dna.primary_assembly",
             ),
         ),
-        expand(
-            "results/featureCounts/rna_central/{unit.sample_name}_{unit.unit_name}.{ext}",
-            unit=units.itertuples(),
-            ext=["featureCounts", "featureCounts.summary"],
-        ),
+        # expand(
+        #     "results/featureCounts/rna_central/{unit.sample_name}_{unit.unit_name}.{ext}",
+        #     unit=units.itertuples(),
+        #     ext=["featureCounts", "featureCounts.summary"],
+        # ),
 
 
 rule all_trimming:
