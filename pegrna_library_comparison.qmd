@@ -134,7 +134,6 @@ for (row in seq_len(nrow(sample_units))) {
 idxstats
 ```
 
-
 ## Sample Correlation
 
 ### BAM Correlation
@@ -145,14 +144,23 @@ Divide the human genome into bins, determine the counts in each of those bins an
 
 ### Correlation of gene counts
 
-Using featureCounts, we generated fragment counts for "exon" features in the Ensemble hg38 annotation and summed them per "gene_id". Primary alignments were counted, even if the fragements were mulitmappers.
+*featureCounts*
+
+* count only fully aligned fragments
+* use the "exon" features in RNA Central GRCh38 annotation
+* sum counts by "Name" attribute
+* primary alignments were counted, even if the fragments aligned multiple times
+* fragments aligning to multiple features were counted *for each feature*, meaning some fragments were counted multiple times
 
 ```{r}
-feature_counts <- readr::read_tsv(
-  paste0(
-    "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/",
-    "featureCounts/all_counts.featureCounts"
-  ),
+feature_counts_dir <- "results/featureCounts/"
+feature_counts_files <- paste0(
+  feature_counts_dir,
+  sample_units$sample_unit,
+  "_noncoding_exon_name.featureCounts"
+)
+feature_counts_first <- readr::read_tsv(
+  feature_counts_files[1],
   comment = "#",
   col_types = list(
     Geneid = col_character(),
@@ -160,6 +168,8 @@ feature_counts <- readr::read_tsv(
     Start = col_character(),
     End = col_character(),
     Strand = col_character(),
+    Length = col_integer(),
+    type = col_skip(),
     .default = col_integer()
   )
 ) %>%
@@ -167,6 +177,23 @@ feature_counts <- readr::read_tsv(
     ., "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/", ""
   )) %>%
   rename_all(~ stringr::str_replace_all(., ".bam", ""))
+
+feature_counts_list <- vector("list")
+for (i in 2:length(feature_counts_files)) {
+  feature_counts_list[[i]] <- 
+    readr::read_tsv(
+  feature_counts_files[i],
+  comment = "#",
+  col_types = "-------i"
+  ) %>%
+  rename_all(~ stringr::str_replace_all(
+    ., "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/", ""
+  )) %>%
+  rename_all(~ stringr::str_replace_all(., ".bam", ""))
+}
+
+feature_counts <- dplyr::bind_cols(feature_counts_list)
+feature_counts <- cbind(feature_counts_first, feature_counts)
 feature_counts
 ```
 
