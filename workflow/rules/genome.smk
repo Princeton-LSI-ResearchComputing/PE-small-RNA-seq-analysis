@@ -19,19 +19,47 @@ rule fetch_grch38:
         shell("mv {input:q} {output:q} &> {log:q}")
 
 
-rule fetch_grch38_gtf:
+rule fetch_gencode_annotations_gff:
     input:
         # only keeping the file so we can move it out to the cwd
         FTP.remote(
-            "https://ftp.ensembl.org/pub/release-108/gtf/homo_sapiens/Homo_sapiens.GRCh38.108.gtf.gz",
+            "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_43/gencode.v43.primary_assembly.annotation.gff3.gz",
             keep_local=True,
         ),
     output:
-        "data/references/Homo_sapiens.GRCh38.108.gtf.gz",
+        "data/references/gencode.v43.primary_assembly.annotation.gff3.gz",
     log:
         "results/logs/reference/fetch_grch38_gff.log",
     run:
         shell("mv {input:q} {output:q} &> {log:q}")
+
+
+rule gff_to_csv:
+    input:
+        gff="data/references/gencode.v43.primary_assembly.annotation.gff3",
+    output:
+        csv="data/references/gencode.v43.primary_assembly.annotation.csv",
+    log:
+        "results/logs/reference/gencode-gff-to-csv.log",
+    conda:
+        "../envs/gff-to-csv.yaml"
+    resources:
+        mem_mb=1600,
+    script:
+        "../scripts/gff-to-csv.py"
+
+
+rule gff_to_tsv:
+    input:
+        gff="data/references/gencode.v43.primary_assembly.annotation.gff3",
+    output:
+        tsv="data/references/gencode.v43.primary_assembly.annotation.tsv",
+    log:
+        "results/logs/reference/gffread-gff-to-tsv.log",
+    conda:
+        "../envs/gffread.yaml"
+    shell:
+        'gffread --table "@chr, @start, @end, gene_name, transcript_name, transcript_type" {input.gff:q} -o {output.tsv:q} 2> {log}'
 
 
 rule fetch_rna_central_annotations:
