@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Created on Sun Feb 12 16:04:16 2023
@@ -6,9 +7,11 @@ Created on Sun Feb 12 16:04:16 2023
 """
 
 import argparse
-from intervaltree import Interval, IntervalTree
+import csv
 import os.path
+
 import pandas as pd
+from intervaltree import IntervalTree
 
 # parse the input
 parser = argparse.ArgumentParser(
@@ -16,6 +19,12 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("--sam_file", type=str, required=True)
 parser.add_argument("--outdir", type=str, required=True)
+parser.add_argument(
+    "--annotation_file",
+    type=str,
+    required=False,
+    default="ensembl_transcripts_processed_primary_assembly.csv",
+)
 args = parser.parse_args()
 if not (
     os.path.isfile(args.sam_file)
@@ -29,9 +38,18 @@ if not os.path.isdir(args.outdir):
     exit()
 
 # create a pandas dataframe with the processed gencode hg38 gff3
-ensembl_transcripts = pd.read_csv("ensembl_transcripts_processed_primary_assembly.csv")
+with open(args.annotation_file, newline="") as csvfile:
+    dialect = csv.Sniffer().sniff(csvfile.read(1024))
+    csvfile.seek(0)
+ensembl_transcripts = pd.read_csv(
+    args.annotation_file,
+    sep=dialect.delimiter,
+    names=["Seqid", "Start", "End", "gene_name", "transcript_name", "transcript_type"],
+)
 
-# correct the gff3 seqid to match the RNAME in the SAM files with ensembl hg38 reference release 107
+
+# correct the gff3 seqid to match the RNAME in the SAM files with ensembl hg38
+# reference release 107
 def correct_gff3_Seqid_to_match_alignment(gff3_Seqid):
     if (gff3_Seqid[0:3]) == "chr":
         if gff3_Seqid[3] != "M":
@@ -42,7 +60,8 @@ def correct_gff3_Seqid_to_match_alignment(gff3_Seqid):
         return gff3_Seqid
 
 
-# function to construct an interval tree with pandas df containing features of one chr as the input
+# function to construct an interval tree with pandas df containing features of one chr
+# as the input
 def construct_intervaltree(annotation_df_by_chr):
     temp_tree = IntervalTree()
     for i in range(annotation_df_by_chr.shape[0]):
@@ -65,8 +84,10 @@ for each_chr in all_Seqids:
         ensembl_transcripts.loc[ensembl_transcripts["Seqid"] == each_chr]
     )
 
+
 # find the closest feature if there are overlapping features, set implementation
-# return sequentially gene_name, transcript_name and transcript type, but not absolute_dist
+# return sequentially gene_name, transcript_name and transcript type, but not
+# absolute_dist
 def pickby_start_end_abs_distance_sum(query_start, query_end, feature_set):
     smallest_abs_dist = float("inf")
     for each in feature_set:
@@ -91,9 +112,6 @@ def count_dict(count_key, count_dictionary):
 all_Seqid_keys = set(transcript_IntervalTree_dict_by_chr.keys())
 
 # count feature
-# read the SAM file input
-alignment = open(args.sam_file, "r")
-each_alignment = alignment.readlines()
 
 gene_count = dict()  # count gene
 transcript_count = dict()  # count transcript
@@ -104,47 +122,49 @@ unannotated_chr_read_count = (
 )
 unannotated_chr = dict()  # count alignment to a unannotated chr/reference
 
-
-for i in range(len(each_alignment)):
-    temp = each_alignment[i].strip().split("\t")
-    legit_RNAME = temp[2]  # RNAME=temp[2]
-    left = min(int(temp[3]), int(temp[7]))  # POS=int(temp[3]), PNEXT=int(temp[7])
-    right = left + abs(int(temp[8])) - 1  # TLEN=int(temp[8]), abs(TLEN)=right-left+1
-    if legit_RNAME in all_Seqid_keys:
-        temp_match = transcript_IntervalTree_dict_by_chr[legit_RNAME][
-            left:right
-        ]  # tree search return a set of interval objects
-        if len(temp_match) == 0:
-            unannotated_count += 1  # add 1 to the unannotated alignment count if no match found from tree search
+alignment_count = 0
+with open(args.sam_file, "r") as sam_file:
+    for alignment in sam_file:
+        alignment_count += 1
+        temp = alignment.strip().split("\t")
+        legit_RNAME = temp[2]  # RNAME=temp[2]
+        left = min(int(temp[3]), int(temp[7]))  # POS=int(temp[3]), PNEXT=int(temp[7])
+        right = (
+            left + abs(int(temp[8])) - 1
+        )  # TLEN=int(temp[8]), abs(TLEN)=right-left+1
+        if legit_RNAME in all_Seqid_keys:
+            temp_match = transcript_IntervalTree_dict_by_chr[legit_RNAME][
+                left:right
+            ]  # tree search return a set of interval objects
+            if len(temp_match) == 0:
+                # add 1 to the unannotated count if no match found from tree search
+                unannotated_count += 1
+            else:
+                (
+                    match_gene,
+                    match_transcript,
+                    match_type,
+                ) = pickby_start_end_abs_distance_sum(left, right, temp_match)
+                count_dict(match_gene, gene_count)
+                count_dict(match_transcript, transcript_count)
+                count_dict(match_type, biotype_count)
         else:
-            (
-                match_gene,
-                match_transcript,
-                match_type,
-            ) = pickby_start_end_abs_distance_sum(left, right, temp_match)
-            count_dict(match_gene, gene_count)
-            count_dict(match_transcript, transcript_count)
-            count_dict(match_type, biotype_count)
-    else:
-        unannotated_count += 1
-        unannotated_chr_read_count += 1
-        count_dict(legit_RNAME, unannotated_chr)
+            unannotated_count += 1
+            unannotated_chr_read_count += 1
+            count_dict(legit_RNAME, unannotated_chr)
 
 biotype_count["unknow/unannotated"] = unannotated_count
-alignment.close()  # cloes the IO for the sam file
 
 # write the log file and the annotation and counting results
 sample_name = args.sam_file.split(os.sep)[-1][:-4]
 
 log_file = open(os.path.join(args.outdir, sample_name + "_log.txt"), "w")
 log_file.writelines("Sample_name" + "\t" + sample_name + "\n")
-log_file.writelines(
-    "Total_proper_read_pair_count" + "\t" + str(len(each_alignment)) + "\n"
-)
+log_file.writelines("Total_proper_read_pair_count" + "\t" + str(alignment_count) + "\n")
 log_file.writelines(
     "Annotated_proper_read_pair_count"
     + "\t"
-    + str(len(each_alignment) - unannotated_count)
+    + str(alignment_count - unannotated_count)
     + "\n"
 )
 log_file.writelines(
