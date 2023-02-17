@@ -57,8 +57,8 @@ rule all:
             genome=(
                 "mastermix1",
                 "mastermix2",
-                "PJY103",
-                "PJY300",
+                "PJY103_mDNMT1",
+                "PJY300_mDNMT1",
                 "Homo_sapiens.GRCh38.dna.primary_assembly",
             ),
         ),
