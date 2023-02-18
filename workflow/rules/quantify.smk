@@ -1,15 +1,16 @@
 import os
 
 
-rule bam_to_sam:
+rule filtered_alignment:
     input:
-        "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/{sample}_{unit}.bam",
+        bam="results/alignments/{genome}/sorted/{sample}_{unit}.bam",
+        idx="results/alignments/{genome}/sorted/{sample}_{unit}.bam.bai",
     output:
         temp(
-            "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/{sample}_{unit}.sam"
+            "results/alignments/{genome}/filtered/{sample}_{unit}_first_proper_pair.{format,sam|bam}"
         ),
     log:
-        "results/logs/samtools_view/{sample}_{unit}_sam_to_bam.log",
+        "results/logs/samtools_view_filter/{genome}/{sample}_{unit}_{format}_filter.log",
     params:
         extra="-f 66",
         region="",
@@ -21,11 +22,11 @@ rule bam_to_sam:
 rule count_smrna_annotations:
     input:
         script="workflow/scripts/smRNAseqv3_annotation_read_processed_gff3_primary_assembly.py",
-        sam="results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/{sample}_{unit}.sam",
+        sam="results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/filtered/{sample}_{unit}_first_proper_pair.sam",
         annotation="data/references/gencode.v43.primary_assembly.annotation.tsv",
     output:
         multiext(
-            "results/smrna_count/{sample}_{unit}",
+            "results/smrna_count/{sample}_{unit}_first_proper_pair",
             "_biotype_count.txt",
             "_gene_count.txt",
             "_log.txt",
@@ -46,3 +47,17 @@ rule count_smrna_annotations:
             "--outdir {params.outdir:q} "
             "&> {log:q}"
         )
+
+
+rule count_exogenous_rna_alignments:
+    input:
+        bam="results/alignments/exogenous_rna/filtered/{sample}_{unit}_first_proper_pair.bam",
+        idx="results/alignments/exogenous_rna/filtered/{sample}_{unit}_first_proper_pair.bam.bai",
+    output:
+        "results/exogenous_rna_count/{sample}_{unit}_idxstats.txt",
+    log:
+        "results/logs/exogenous_rna_count/{sample}_{unit}_idxstats.log",
+    params:
+        extra="",
+    wrapper:
+        "v1.23.4/bio/samtools/idxstats"

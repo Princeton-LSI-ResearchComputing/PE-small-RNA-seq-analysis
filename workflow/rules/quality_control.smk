@@ -63,11 +63,11 @@ rule samtools_stats:
 
 rule samtools_index:
     input:
-        "results/alignments/{genome}/sorted/{sample}_{unit}.bam",
+        "results/alignments/{genome}/{format}/{sample}_{unit}.bam",
     output:
-        "results/alignments/{genome}/sorted/{sample}_{unit}.bam.bai",
+        "results/alignments/{genome}/{format}/{sample}_{unit}.bam.bai",
     log:
-        "results/logs/samtools_index/{genome}/{sample}_{unit}.log",
+        "results/logs/samtools_index/{genome}/{format}/{sample}_{unit}.log",
     params:
         extra="",  # optional params string
     threads: 4  # This value - 1 will be sent to -@

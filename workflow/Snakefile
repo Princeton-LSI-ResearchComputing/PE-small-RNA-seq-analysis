@@ -63,7 +63,7 @@ rule all:
             ),
         ),
         expand(
-            "results/smrna_count/{unit.sample_name}_{unit.unit_name}{ext}",
+            "results/smrna_count/{unit.sample_name}_{unit.unit_name}_first_proper_pair{ext}",
             unit=units.itertuples(),
             ext=[
                 "_biotype_count.txt",
@@ -72,6 +72,10 @@ rule all:
                 "_transcript_count.txt",
                 "_unannotated_chr_count.txt",
             ],
+        ),
+        expand(
+            "results/exogenous_rna_count/{unit.sample_name}_{unit.unit_name}_idxstats.txt",
+            unit=units.itertuples(),
         ),
 
 
@@ -136,7 +140,7 @@ rule all_riboswitch:
 rule all_quantify:
     input:
         expand(
-            "results/smrna_count/{unit.sample_name}_{unit.unit_name}{ext}",
+            "results/smrna_count/{unit.sample_name}_{unit.unit_name}_first_proper_pair{ext}",
             unit=units.itertuples(),
             ext=[
                 "_biotype_count.txt",
@@ -145,6 +149,10 @@ rule all_quantify:
                 "_transcript_count.txt",
                 "_unannotated_chr_count.txt",
             ],
+        ),
+        expand(
+            "results/exogenous_rna_count/{unit.sample_name}_{unit.unit_name}_idxstats.txt",
+            unit=units.itertuples(),
         ),
 
 
