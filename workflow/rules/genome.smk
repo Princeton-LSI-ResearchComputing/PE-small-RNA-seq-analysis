@@ -34,21 +34,6 @@ rule fetch_gencode_annotations_gff:
         shell("mv {input:q} {output:q} &> {log:q}")
 
 
-rule gff_to_csv:
-    input:
-        gff="data/references/gencode.v43.primary_assembly.annotation.gff3",
-    output:
-        csv="data/references/gencode.v43.primary_assembly.annotation.csv",
-    log:
-        "results/logs/reference/gencode-gff-to-csv.log",
-    conda:
-        "../envs/gff-to-csv.yaml"
-    resources:
-        mem_mb=1600,
-    script:
-        "../scripts/gff-to-csv.py"
-
-
 rule gff_to_tsv:
     input:
         gff="data/references/gencode.v43.primary_assembly.annotation.gff3",

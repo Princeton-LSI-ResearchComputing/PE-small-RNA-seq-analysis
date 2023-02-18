@@ -1,61 +1,48 @@
 import os
 
-# rule feature_counts_rna_central_wrapper:
-#     input:
-#         # list of sam or bam files
-#         samples="results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/{sample}_{unit}.bam",
-#         annotation="data/references/rna_central/genome_coordinates/homo_sapiens.GRCh38.gff3.gz",
-#         # optional input
-#         #chr_names="",           # implicitly sets the -A flag
-#         #fasta="genome.fasta"    # implicitly sets the -G flag
-#     output:
-#         multiext(
-#             "results/featureCounts/rna_central/{sample}_{unit}_noncoding_exon_name",
-#             ".featureCounts",
-#             ".featureCounts.summary",
-#         ),
-#     threads: 12
-#     resources:
-#         mem_mb=32000,
-#     params:
-#         strand=0,  # optional; strandness of the library (0: unstranded [default], 1: stranded, and 2: reversely stranded)
-#         r_path="",  # implicitly sets the --Rpath flag
-#         extra="-p -B -M -O --primary -t noncoding_exon --frac-overlap 1.0 -g typeName --extraAttributes type",  # count all primary alignments, even if reads are multimapped
-#     log:
-#         "results/logs/featureCounts/rna_central/{sample}_{unit}_noncoding_exon_name.log",
-#     wrapper:
-#         "v1.21.2/bio/subread/featurecounts"
 
-
-rule feature_counts_rna_central_with_core:
+rule bam_to_sam:
     input:
-        # sam or bam
-        sample="results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/{sample}_{unit}.bam",
-        annotation="data/references/rna_central/genome_coordinates/homo_sapiens.GRCh38.typeName.gff3",
+        "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/{sample}_{unit}.bam",
     output:
-        featureCounts="results/featureCounts/rna_central/{sample}_{unit}.featureCounts",
-        summary="results/featureCounts/rna_central/{sample}_{unit}.featureCounts.summary",
-        core="results/featureCounts/rna_central/{sample}_{unit}.bam.featureCounts",
-    threads: 12
-    resources:
-        mem_mb=32000,
-    params:
-        strand=0,  # optional; strandness of the library (0: unstranded [default], 1: stranded, and 2: reversely stranded)
-        extra="-p -B -M -O --primary -t noncoding_exon --fracOverlap 1.0 -R CORE -g typeName",  # count all primary alignments, even if reads are multimapped
+        temp(
+            "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/{sample}_{unit}.sam"
+        ),
     log:
-        "results/logs/featureCounts/rna_central/{sample}_{unit}_noncoding_exon_name.log",
+        "results/logs/samtools_view/{sample}_{unit}_sam_to_bam.log",
+    params:
+        extra="-f 66",
+        region="",
+    threads: 2
+    wrapper:
+        "v1.23.4/bio/samtools/view"
+
+
+rule count_smrna_annotations:
+    input:
+        script="workflow/scripts/smRNAseqv3_annotation_read_processed_gff3_primary_assembly.py",
+        sam="results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/sorted/{sample}_{unit}.sam",
+        annotation="data/references/gencode.v43.primary_assembly.annotation.tsv",
+    output:
+        multiext(
+            "results/smrna_count/{sample}_{unit}",
+            "_biotype_count.txt",
+            "_gene_count.txt",
+            "_log.txt",
+            "_transcript_count.txt",
+            "_unannotated_chr_count.txt",
+        ),
+    params:
+        outdir=lambda wildcards, output: Path(output[0]).parent,
+    log:
+        "results/logs/smrna_count/{sample}_{unit}.log",
     conda:
-        "../envs/subread.yaml"
+        "../envs/smrnaseq_annotation_count.yaml"
     shell:
         (
-            "featureCounts "
-            "-T {threads} "
-            "-s {params.strand} "
-            "-a {input.annotation:q} "
-            "{params.extra} "
-            "-o {output[0]:q} "
-            "{input.sample:q} "
-            "&> {log:q} "
-            "&& "
-            'mv "$(basename{input.sample}).featureCounts" {output.core:q}'
+            "{input.script:q} "
+            "--sam_file {input.sam:q} "
+            "--annotation_file {input.annotation:q} "
+            "--outdir {params.outdir:q} "
+            "&> {log:q}"
         )
