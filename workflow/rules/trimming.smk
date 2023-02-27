@@ -12,11 +12,11 @@ rule cutadapt:
         # https://cutadapt.readthedocs.io/en/stable/guide.html#adapter-types
         adapters="-a " + config["adapter-read-1"] + " -A " + config["adapter-read-2"],
         # https://cutadapt.readthedocs.io/en/stable/guide.html#
-        extra="--minimum-length 10 -q 20",
+        extra="",
     log:
         "results/logs/cutadapt/{sample}_{unit}.log",
     threads: 8  # set desired number of threads here
     resources:
         mem_mb=8000,
     wrapper:
-        "v1.18.3/bio/cutadapt/pe"
+        "v1.23.3/bio/cutadapt/pe"

@@ -1,10 +1,15 @@
+rna_species_plot_range <- function(sequence_name) {
+  plot_range <- rna_mixes %>%
+    filter(.data$rna_species == sequence_name) %>%
+    select(start, end) %>%
+    unique()
+  return(plot_range)
+}
+
 ### GRanges from BAM
 granges_from_bam <- function(sample_unit, sequence_name, is_proper_pair) {
-  rna_species_length <- rna_mixes %>%
-    filter(.data$rna_species == sequence_name) %>%
-    pull(.data$length) %>%
-    unique()
-  which <- GRanges(sprintf("%s:1-%i", rna_species, rna_species_length))
+  plot_range <- rna_species_plot_range(sequence_name)
+  which <- GRanges(sprintf("%s:%i-%i", sequence_name, plot_range$start, plot_range$end))
 
   param <- ScanBamParam(
     flag = scanBamFlag(isProperPair = is_proper_pair),
@@ -108,13 +113,15 @@ pegrna_plots <- function(sequence_name,
                          ylim = NA,
                          ylab,
                          vlines = NA,
-                         start_point = NA) {
+                         start_offset = NA) {
+  
   plot_data <- get_pegrna_plot_data(
     sequence_name = sequence_name,
     normalization_factor = normalization_factor,
     mix = mix
   )
-
+  plot_range <- rna_species_plot_range(sequence_name)
+  
   # Find largest value for rna_species
   if (is.na(ylim)) {
     m <- 0
@@ -133,7 +140,7 @@ pegrna_plots <- function(sequence_name,
   par(mfrow = c(2, 1))
 
   for (s in names(plot_data)) {
-    if (is.na(start_point)) {
+    if (is.na(start_offset)) {
       series_data_concordant <- plot_data[[s]][["concordant"]][[sequence_name]]
       series_data_discordant <- plot_data[[s]][["discordant"]][[sequence_name]]
       concordant_legend_text <- "Concordant"
@@ -143,7 +150,7 @@ pegrna_plots <- function(sequence_name,
       normalization_read_count <- plot_data[[s]][["normalization_read_count"]]
       start_site <- GRanges(
         seqnames = rna_species,
-        ranges = IRanges(start = 1, end = start_point)
+        ranges = IRanges(start = plot_range$start, end = plot_range$start + start_offset)
       )
       full_length_granges <- subsetByOverlaps(concordant_granges, start_site)
       partial_granges <-
@@ -153,8 +160,8 @@ pegrna_plots <- function(sequence_name,
         normalization_read_count
       series_data_discordant <-
         coverage(partial_granges)[[sequence_name]] / normalization_read_count
-      concordant_legend_text <- sprintf("Start within %s bp of 5'", start_point)
-      discordant_legend_text <- sprintf("Start after %s bp of 5'", start_point)
+      concordant_legend_text <- sprintf("Start within %s bp of 5'", start_offset)
+      discordant_legend_text <- sprintf("Start after %s bp of 5'", start_offset)
     }
 
 
@@ -167,6 +174,7 @@ pegrna_plots <- function(sequence_name,
       plot(series_data_concordant,
         type = "l",
         col = concordant_color,
+        xlim = c(plot_range$start, plot_range$end),
         ylim = ylim,
         main = sprintf("Day %s", day),
         xlab = sprintf("%s position", sequence_name),

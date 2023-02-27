@@ -45,29 +45,45 @@ rule all:
                 "exogenous_rna",
                 "Homo_sapiens.GRCh38.dna.primary_assembly",
                 "unmapped",
+                "featurecounts",
             ),
         ),
         expand(
-            "results/alignments/exogenous_rna/bedpe/{sample}_{unit}.bedpe",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/exogenous_rna/bedpe/{unit.sample_name}_{unit.unit_name}.bedpe",
+            unit=units.itertuples(),
         ),
         expand(
             "data/references/{genome}.fa.fai",
             genome=(
                 "mastermix1",
                 "mastermix2",
+                "PJY103_mDNMT1",
+                "PJY300_mDNMT1",
                 "Homo_sapiens.GRCh38.dna.primary_assembly",
             ),
+        ),
+        expand(
+            "results/smrna_count/{unit.sample_name}_{unit.unit_name}_first_proper_pair{ext}",
+            unit=units.itertuples(),
+            ext=[
+                "_biotype_count.txt",
+                "_gene_count.txt",
+                "_log.txt",
+                "_transcript_count.txt",
+                "_unannotated_chr_count.txt",
+            ],
+        ),
+        expand(
+            "results/exogenous_rna_count/{unit.sample_name}_{unit.unit_name}_idxstats.txt",
+            unit=units.itertuples(),
         ),
 
 
 rule all_trimming:
     input:
         expand(
-            "results/trimmed/{sample}_{unit}.{read}.fastq.gz",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/trimmed/{unit.sample_name}_{unit.unit_name}.{read}.fastq.gz",
+            unit=units.itertuples(),
             read=["1", "2"],
         ),
 
@@ -75,9 +91,8 @@ rule all_trimming:
 rule all_mapping:
     input:
         expand(
-            "results/alignments/{genome}/sorted/{sample}_{unit}.bam",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/{genome}/sorted/{unit.sample_name}_{unit.unit_name}.bam",
+            unit=units.itertuples(),
             genome=("Homo_sapiens.GRCh38.dna.primary_assembly", "exogenous_rna"),
         ),
 
@@ -91,6 +106,7 @@ rule all_multiqc:
                 "exogenous_rna",
                 "Homo_sapiens.GRCh38.dna.primary_assembly",
                 "unmapped",
+                "featurecounts",
             ),
         ),
 
@@ -98,30 +114,45 @@ rule all_multiqc:
 rule all_bedpe:
     input:
         expand(
-            "results/alignments/exogenous_rna/bedpe/{sample}_{unit}.bedpe",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/exogenous_rna/bedpe/{unit.sample_name}_{unit.unit_name}.bedpe",
+            unit=units.itertuples(),
         ),
 
 
 rule all_riboswitch:
     input:
         expand(
-            "results/alignments/exogenous_rna/riboswitch/{sample}_{unit}.{read}.collapsed.fq",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/exogenous_rna/riboswitch/{unit.sample_name}_{unit.unit_name}.{read}.collapsed.fq",
+            unit=units.itertuples(),
             read=["1", "2"],
         ),
         expand(
-            "results/alignments/exogenous_rna/riboswitch/{sample}_{unit}.brc.tsv",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/exogenous_rna/riboswitch/{unit.sample_name}_{unit.unit_name}.brc.tsv",
+            unit=units.itertuples(),
         ),
         expand(
-            "results/alignments/exogenous_rna/cross_alignment_check/sorted/{sample}_{unit}_to_{genome}.bam.bai",
-            sample=units.sample_name,
-            unit=units.unit_name,
+            "results/alignments/exogenous_rna/cross_alignment_check/sorted/{unit.sample_name}_{unit.unit_name}_to_{genome}.bam.bai",
+            unit=units.itertuples(),
             genome=["PJY103", "PJY300"],
+        ),
+
+
+rule all_quantify:
+    input:
+        expand(
+            "results/smrna_count/{unit.sample_name}_{unit.unit_name}_first_proper_pair{ext}",
+            unit=units.itertuples(),
+            ext=[
+                "_biotype_count.txt",
+                "_gene_count.txt",
+                "_log.txt",
+                "_transcript_count.txt",
+                "_unannotated_chr_count.txt",
+            ],
+        ),
+        expand(
+            "results/exogenous_rna_count/{unit.sample_name}_{unit.unit_name}_idxstats.txt",
+            unit=units.itertuples(),
         ),
 
 
@@ -149,3 +180,4 @@ include: "rules/mapping.smk"
 include: "rules/quality_control.smk"
 include: "rules/alignment_reporting.smk"
 include: "rules/query_riboswitch.smk"
+include: "rules/quantify.smk"

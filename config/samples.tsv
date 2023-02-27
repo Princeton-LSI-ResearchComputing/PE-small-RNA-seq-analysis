@@ -7,3 +7,11 @@ Parental_mastermix1_day2	Parental	mastermix1	2
 P1E10_sorted_mastermix1_day2	P1E10	mastermix1	2
 Parental_mastermix2_day2	Parental	mastermix2	2
 P1E10_sorted_mastermix2_day2	P1E10	mastermix2	2
+P1E10_sorted_PJY103_pegRNA_day1	P1E10	PJY103_mDNMT1	1
+P1E10_sorted_PJY103_pegRNA_day2	P1E10	PJY103_mDNMT1	2
+P1E10_sorted_PJY300_epegRNA_day1	P1E10	PJY300_mDNMT1	1
+P1E10_sorted_PJY300_epegRNA_day2	P1E10	PJY300_mDNMT1	2
+Parental_PJY103_pegRNA_day1	Parental	PJY103_mDNMT1	1
+Parental_PJY103_pegRNA_day2	Parental	PJY103_mDNMT1	2
+Parental_PJY300_epegRNA_day1	Parental	PJY300_mDNMT1	1
+Parental_PJY300_epegRNA_day2	Parental	PJY300_mDNMT1	2

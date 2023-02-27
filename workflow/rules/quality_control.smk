@@ -63,11 +63,11 @@ rule samtools_stats:
 
 rule samtools_index:
     input:
-        "results/alignments/{genome}/sorted/{sample}_{unit}.bam",
+        "results/alignments/{genome}/{format}/{sample}_{unit}.bam",
     output:
-        "results/alignments/{genome}/sorted/{sample}_{unit}.bam.bai",
+        "results/alignments/{genome}/{format}/{sample}_{unit}.bam.bai",
     log:
-        "results/logs/samtools_index/{genome}/{sample}_{unit}.log",
+        "results/logs/samtools_index/{genome}/{format}/{sample}_{unit}.log",
     params:
         extra="",  # optional params string
     threads: 4  # This value - 1 will be sent to -@
@@ -89,36 +89,25 @@ rule samtools_idxstats:
         "v1.18.3/bio/samtools/idxstats"
 
 
-rule deeptools_bampefragmentsize:
+rule insert_size:
     input:
-        bam=expand(
-            "results/alignments/{{genome}}/sorted/{unit.sample_name}_{unit.unit_name}.bam",
-            unit=units.itertuples(),
-        ),
-        bai=expand(
-            "results/alignments/{{genome}}/sorted/{unit.sample_name}_{unit.unit_name}.bam.bai",
-            unit=units.itertuples(),
-        ),
+        "results/alignments/{genome}/sorted/{sample}_{unit}.bam",
     output:
-        table="results/deeptools_bampefragmentsize/{genome}/fragment_size_table.tsv",
-        raw="results/deeptools_bampefragmentsize/{genome}/fragment_size_raw_lengths.tsv",
-        summary="results/deeptools_bampefragmentsize/{genome}/fragment_size_summary.txt",
+        txt="results/picard_insert_size/{genome}/{sample}_{unit}.isize.txt",
+        pdf="results/picard_insert_size/{genome}/{sample}_{unit}.isize.pdf",
     log:
-        "results/logs/deeptools_bampefragmentsize/{genome}/deeptools_bampefragmentsize.log",
-    threads: 12
-    conda:
-        "../envs/deeptools.yaml"
-    shell:
-        """
-        bamPEFragmentSize \
-            -T "Fragment size of PE RNA-Seq data" \
-            --table {output.table:q} \
-            --outRawFragmentLengths {output.raw:q} \
-            --numberOfProcessors {threads} \
-            -b {input.bam:q} \
-            > {output.summary:q} \
-            2> {log:q}
-        """
+        "results/logs/picard_insert_size/{genome}/{sample}_{unit}.log",
+    params:
+        # optional parameters (e.g. relax checks as below)
+        extra="--VALIDATION_STRINGENCY LENIENT --METRIC_ACCUMULATION_LEVEL null --METRIC_ACCUMULATION_LEVEL SAMPLE",
+    # optional specification of memory usage of the JVM that snakemake will respect with global
+    # resource restrictions (https://snakemake.readthedocs.io/en/latest/snakefiles/rules.html#resources)
+    # and which can be used to request RAM during cluster job submission as `{resources.mem_mb}`:
+    # https://snakemake.readthedocs.io/en/latest/executing/cluster.html#job-properties
+    resources:
+        mem_mb=1024,
+    wrapper:
+        "v1.23.1/bio/picard/collectinsertsizemetrics"
 
 
 rule multiqc_library:
@@ -156,8 +145,10 @@ rule multiqc_mapped:
             "results/samtools_idxstats/{{genome}}/{unit.sample_name}_{unit.unit_name}.bam.idxstats",
             unit=units.itertuples(),
         ),
-        "results/deeptools_bampefragmentsize/{genome}/fragment_size_table.tsv",
-        "results/deeptools_bampefragmentsize/{genome}/fragment_size_raw_lengths.tsv",
+        expand(
+            "results/picard_insert_size/{{genome}}/{unit.sample_name}_{unit.unit_name}.isize.txt",
+            unit=units.itertuples(),
+        ),
     output:
         "results/qc/multiqc_{genome}.html",
     params:
@@ -168,18 +159,14 @@ rule multiqc_mapped:
         "v1.18.3/bio/multiqc"
 
 
-rule multiqc_unmapped:
+rule multiqc_featurecounts:
     input:
-        expand(
-            "results/qc/fastqc_unmapped/{unit.sample_name}_{unit.unit_name}.{readnum}.html",
-            unit=units.itertuples(),
-            readnum=(1, 2),
-        ),
+        "results/featureCounts/noncoding_exon_type.featureCounts.summary",
     output:
-        "results/qc/multiqc_unmapped.html",
+        "results/qc/multiqc_featurecounts.html",
     params:
         "",
     log:
-        "results/logs/multiqc_unmapped.log",
+        "results/logs/multiqc_featurecounts.log",
     wrapper:
         "v1.18.3/bio/multiqc"

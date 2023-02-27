@@ -1,0 +1,334 @@
+---
+title: "ncRNA Annotations"
+author: "Lance Parsons"
+format:
+  html:
+    toc: true
+    code-fold: true
+    df-print: paged
+    embed-resources: true
+editor: source
+---
+
+## Load Packages
+
+```{r}
+#| label: load-packages
+#| message: false
+library("readr")
+library("dplyr")
+library("stringr")
+library("tibble")
+library("ggplot2")
+library("UpSetR")
+library("cowplot")
+library("gridExtra")
+```
+
+## Annotation feature lengths
+
+### Load RNA Central annotations
+
+```{r}
+#| cache: true
+gff_features <- read_tsv(
+  "data/references/rna_central/genome_coordinates/homo_sapiens.GRCh38.gff3",
+  comment = "#",
+  col_names = c(
+    "seqid", "source", "type", "start", "end",
+    "score", "strand", "phase", "attributes"
+  ),
+  col_types = "ccfiicffc"
+) %>%
+  dplyr::mutate(biotype = factor(
+    stringr::str_replace(attributes, ".*type=([^;]*);.*", "\\1")
+  )) %>%
+  mutate(length = end - start)
+head(gff_features)
+```
+
+### Exon length distribution by biotype
+
+```{r, fig.width=12, fig.height=8}
+#| fig-width: 12
+#| fig-height: 8
+ggplot(
+  gff_features %>% dplyr::filter(type == "noncoding_exon"),
+  aes(x = length)
+) +
+  geom_histogram() +
+  facet_wrap("biotype", scales = "free")
+```
+
+### Transcript length distribution by biotype
+
+```{r, fig.width=12, fig.height=8}
+#| fig-width: 12
+#| fig-height: 8
+ggplot(
+  gff_features %>% dplyr::filter(type == "transcript"),
+  aes(x = length)
+) +
+  geom_histogram() +
+  facet_wrap("biotype", scales = "free")
+```
+
+## Annotation feature overlap
+
+### RNA Central
+
+```{r}
+ncrna_intersections <- read_tsv(
+  paste0(
+    "data/references/rna_central/genome_coordinates/",
+    "homo_sapiens.GRCh38.multiinter.tsv"
+  ),
+  col_types = list(
+    chrom = col_character(),
+    start = col_integer(),
+    end = col_integer(),
+    num = col_integer(),
+    list = col_character(),
+    .default = col_integer()
+  )
+)
+
+ncrna_upset_data <- ncrna_intersections %>%
+  dplyr::select(-chrom, -start, -end, -num, -list) %>%
+  rename_all(~ stringr::str_replace_all(
+    ., "homo_sapiens.GRCh38.", ""
+  )) %>%
+  rename_all(~ stringr::str_replace_all(., ".gff3", ""))
+```
+
+-   All ncRNA types
+-   50 intersections max
+-   Group by ncRNA types
+-   5 largest intersections per type
+
+```{r, fig.width=12, fig.height=10}
+#| fig-width: 12
+#| fig-height: 10
+upset(as.data.frame(ncrna_upset_data),
+  nsets = 30,
+  nintersects = 50,
+  main.bar.color = "black",
+  order.by = c("degree", "freq"),
+  decreasing = c(TRUE, TRUE),
+  group.by = "sets",
+  cutoff = 5
+)
+```
+
+### Ensembl
+
+```{r}
+ensembl_intersections <- read_tsv(
+  "data/references/Homo_sapiens.GRCh38.108.gtf.multiinter.tsv",
+  col_types = list(
+    chrom = col_character(),
+    start = col_integer(),
+    end = col_integer(),
+    num = col_integer(),
+    list = col_character(),
+    .default = col_integer()
+  )
+)
+
+ncrna_upset_data <- ncrna_intersections %>%
+  dplyr::select(-chrom, -start, -end, -num, -list) %>%
+  rename_all(~ stringr::str_replace_all(
+    ., "homo_sapiens.GRCh38.", ""
+  )) %>%
+  rename_all(~ stringr::str_replace_all(., ".gff3", ""))
+```
+
+-   All ncRNA types
+-   50 intersections max
+-   Group by ncRNA types
+-   5 largest intersections per type
+
+```{r, fig.width=12, fig.height=10}
+#| fig-width: 12
+#| fig-height: 10
+upset(as.data.frame(ncrna_upset_data),
+  nsets = 30,
+  nintersects = 50,
+  main.bar.color = "black",
+  order.by = c("degree", "freq"),
+  decreasing = c(TRUE, TRUE),
+  group.by = "sets",
+  cutoff = 5
+)
+```
+
+## Fragment annotation overlap
+
+### P1E10_sorted_mastermix1_day1_rep1
+
+#### Load fragment assignments
+
+```{r}
+#| cache: true
+p1e10_fragment_assignments <- read_tsv(
+  paste0(
+    "data/references/rna_central/genome_coordinates/",
+    "P1E10_sorted_mastermix1_day1_rep1.bam.featureCounts"
+  ),
+  col_names = c("read_name", "status", "num_targets", "biotypes"),
+  col_types = "cfic",
+  col_select = c("biotypes")
+) %>%
+  count(biotypes, name = "fragment_count") %>%
+  mutate(biotypes = str_replace_all(biotypes, ",", "&"))
+head(p1e10_fragment_assignments)
+```
+
+#### Convert data format
+
+The counts were too high to work practically with UpSet, so these counts have been divided by `100`.
+
+```{r}
+p1e10_upset_data <- fromExpression(tibble::deframe(
+  p1e10_fragment_assignments %>%
+    filter(grepl("&", biotypes)) %>%
+    filter(fragment_count > 10) %>%
+    mutate(fragment_count_modified = fragment_count / 100) %>%
+    select(biotypes, fragment_count_modified)
+))
+```
+
+
+### Parental_mastermix1_day1_rep1
+
+#### Load fragment assignments
+
+```{r}
+#| cache: true
+parental_fragment_assignments <- read_tsv(
+  paste0(
+    "data/references/rna_central/genome_coordinates/",
+    "Parental_mastermix1_day1_rep1.bam.featureCounts"
+  ),
+  col_names = c("read_name", "status", "num_targets", "biotypes"),
+  col_types = "cfic",
+  col_select = c("biotypes")
+) %>%
+  count(biotypes, name = "fragment_count") %>%
+  mutate(biotypes = str_replace_all(biotypes, ",", "&"))
+head(parental_fragment_assignments)
+```
+
+#### Convert data format
+
+The counts were too high to work practically with UpSet, so these counts have been divided by `100`.
+
+```{r}
+parental_upset_data <- fromExpression(tibble::deframe(
+  parental_fragment_assignments %>%
+    filter(grepl("&", biotypes)) %>%
+    filter(fragment_count > 10) %>%
+    mutate(fragment_count_modified = fragment_count / 100) %>%
+    select(biotypes, fragment_count_modified)
+))
+```
+
+### UpSet plots
+
+#### Helper code to arrange upset plots
+```{r}
+upset_to_cowplot <- function(upset_plot) {
+  uu_c <- cowplot::plot_grid(NULL, upset_plot$Main_bar, upset_plot$Sizes,
+    upset_plot$Matrix,
+    nrow = 2, align = "hv", rel_heights = c(3, 1),
+    rel_widths = c(2, 3)
+  )
+  return(uu_c)
+}
+```
+
+#### Top 75 intersections
+
+```{r, fig.width=16, fig.height=16}
+#| fig-width: 16
+#| fig-height: 16
+uu_p1e10 <- upset(p1e10_upset_data,
+  nsets = 30,
+  nintersects = 75,
+  main.bar.color = "black",
+  order.by = "freq",
+)
+
+uu_parental <- upset(parental_upset_data,
+  nsets = 30,
+  nintersects = 75,
+  main.bar.color = "black",
+  order.by = "freq",
+)
+
+grid.arrange(arrangeGrob(upset_to_cowplot(uu_parental), top = "Parental"),
+  arrangeGrob(upset_to_cowplot(uu_p1e10), top = "P1E10"),
+  nrow = 2
+)
+```
+
+#### Subsets of intersections
+
+```{r, fig.width=16, fig.height=16}
+#| fig-width: 16
+#| fig-height: 16
+
+all_biotypes <- gff_features$biotype %>% unique()
+
+set_lists <- list(
+  setdiff(
+    all_biotypes,
+    c(
+      "lncRNA", "piRNA", "miRNA", "misc_RNA",
+      "pre_miRNA", "precursor_RNA", "ncRNA"
+    )
+  ),
+  setdiff(
+    all_biotypes,
+    c(
+      "lncRNA", "piRNA", "miRNA", "misc_RNA",
+      "pre_miRNA", "precursor_RNA", "ncRNA", "sRNA"
+    )
+  ),
+  c(
+    "lncRNA", "piRNA", "miRNA", "misc_RNA", "pre_miRNA",
+    "precursor_RNA", "ncRNA"
+  ),
+  c("piRNA", "miRNA", "misc_RNA", "pre_miRNA", "precursor_RNA", "ncRNA"),
+  c("piRNA", "miRNA", "pre_miRNA", "precursor_RNA", "ncRNA"),
+  c("piRNA", "miRNA", "pre_miRNA", "ncRNA"),
+  c("piRNA", "miRNA", "precursor_RNA", "ncRNA"),
+  c("piRNA", "miRNA", "ncRNA")
+)
+
+for (i in seq_along(set_lists)) {
+  uu_p1e10 <- upset(
+    p1e10_upset_data %>%
+      dplyr::select(any_of(set_lists[[i]])),
+    nsets = 30,
+    nintersects = 75,
+    main.bar.color = "black",
+    order.by = "freq",
+  )
+
+  uu_parental <- upset(
+    parental_upset_data %>%
+      dplyr::select(any_of(set_lists[[i]])),
+    nsets = 30,
+    nintersects = 75,
+    main.bar.color = "black",
+    order.by = "freq",
+  )
+
+  grid.arrange(arrangeGrob(upset_to_cowplot(uu_parental), top = "Parental"),
+    arrangeGrob(upset_to_cowplot(uu_p1e10), top = "P1E10"),
+    top = paste(set_lists[[i]], collapse = ", "),
+    nrow = 2
+  )
+}
+```
