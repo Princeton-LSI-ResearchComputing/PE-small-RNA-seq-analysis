@@ -113,14 +113,16 @@ all_Seqid_keys = set(transcript_IntervalTree_dict_by_chr.keys())
 
 # count feature
 
-gene_count = dict()  # count gene
-transcript_count = dict()  # count transcript
-biotype_count = dict()  # count biotype
+gene_count: dict[str, int] = dict()  # count gene
+transcript_count: dict[str, int] = dict()  # count transcript
+biotype_count: dict[str, int] = dict()  # count biotype
 unannotated_count = 0  # count unannotated aligned reads
 unannotated_chr_read_count = (
     0  # count reads that are aligned to unannotated chr/reference
 )
-unannotated_chr = dict()  # count alignment to a unannotated chr/reference
+unannotated_chr: dict[
+    str, int
+] = dict()  # count alignment to a unannotated chr/reference
 
 alignment_count = 0
 with open(args.sam_file, "r") as sam_file:
