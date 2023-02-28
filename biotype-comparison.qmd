@@ -10,6 +10,18 @@ format:
 editor: source
 ---
 
+
+# Load libraries
+
+This project uses [`renv`](https://rstudio.github.io/renv/articles/renv.html)
+to keep track of installed packages. Install `renv` if not installed and load
+dependencies with `renv::restore()`.
+
+```r
+install.packages("renv")
+renv::restore()
+```
+
 ```{r}
 #| label: load-packages
 #| include: false
@@ -21,29 +33,24 @@ library("stringr")
 library("ggplot2")
 ```
 
-## Read data
+# Read data
 
 {{< include _sample-metadata.qmd >}}
 
-## Biotype comparison
+# Biotype comparison
 
 * count only fragments that were properly aligned
 * annotate with GENCODE gene model
 * primary alignments were counted, even if the fragments aligned multiple times
 * fragments aligning to multiple features were assigned to the feature that mostly closely overlapped with the fragment
 
-```{r import_biotype_counts}
+```{r}
+#| label: import-biotype-counts
 human_counts_dir <- "results/smrna_count/"
 biotype_counts_files <- paste0(
   human_counts_dir,
   sample_units$sample_unit,
   "_first_proper_pair_biotype_count.txt"
-)
-exogenous_counts_dir <- "results/exogenous_rna_count/"
-exogenous_counts_files <- paste0(
-  exogenous_counts_dir,
-  sample_units$sample_unit,
-  "_idxstats.txt"
 )
 
 biotype_counts <- readr::read_tsv(
@@ -52,17 +59,6 @@ biotype_counts <- readr::read_tsv(
   col_names = c("biotype", biotype_counts_files[1]),
   col_types = "ci"
 )
-exogenous_counts <- read_tsv(
-  exogenous_counts_files[1],
-  col_names = c("exogenous_rna", exogenous_counts_files[1]),
-  col_types = "c-i-"
-)
-biotype_counts <- biotype_counts %>%
-  dplyr::add_row(
-    biotype = "exogenous_rna",
-    "{biotype_counts_files[1]}" := # nolint: object_name_linter
-      sum(exogenous_counts[[exogenous_counts_files[1]]])
-  )
 
 for (i in 2:length(biotype_counts_files)) {
   biotype_sample <-
@@ -71,20 +67,6 @@ for (i in 2:length(biotype_counts_files)) {
       comment = "#",
       col_names = c("biotype", biotype_counts_files[i]),
       col_types = "ci"
-    )
-
-  exogenous_counts_sample <-
-    readr::read_tsv(
-      exogenous_counts_files[i],
-      col_names = c("exogenous_rna", exogenous_counts_files[i]),
-      col_types = "c-i-"
-    )
-
-  biotype_sample <- biotype_sample %>%
-    dplyr::add_row(
-      biotype = "exogenous_rna",
-      "{biotype_counts_files[i]}" := # nolint: object_name_linter
-        sum(exogenous_counts_sample[[exogenous_counts_files[i]]])
     )
 
   biotype_counts <- biotype_counts %>%
@@ -106,6 +88,7 @@ biotype_counts
 ```
 
 ```{r fig.height=7, fig.width=16}
+#| label: biotype-barplot
 #| fig-height: 7
 #| fig-width: 16
 p <- ggplot(

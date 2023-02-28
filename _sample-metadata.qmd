@@ -1,6 +1,7 @@
 Get list of samples
 
 ```{r}
+#| label: sample-metadata
 samples <- read_tsv("config/samples.tsv",
   col_types = list(
     sample_name = col_character(),
@@ -35,6 +36,7 @@ sample_units
 Table of exogenous RNA mixtures
 
 ```{r}
+#| label: exogenous-rna-mixtures
 # Exogenous RNA mixtures
 rna_mixes <- tibble()
 for (mix in c("mastermix1", "mastermix2", "PJY103_mDNMT1", "PJY300_mDNMT1")) {

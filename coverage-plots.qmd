@@ -25,28 +25,28 @@ renv::restore()
 #| label: load-packages
 #| include: false
 #| message: false
-library(readr)
-library(dplyr)
-library(Rsamtools)
-library(tidyr)
-library(stringr)
-library(GenomicAlignments)
-library(plyranges)
+library("readr")
+library("dplyr")
+library("Rsamtools")
+library("tidyr")
+library("stringr")
+library("GenomicAlignments")
+library("plyranges")
 library("Gviz")
 options(ucscChromosomeNames = FALSE)
 ```
 
-## Read sample data
+# Read sample data
 
 {{< include _sample-metadata.qmd >}}
 
-## Exogenous RNA counts
+# Exogenous RNA counts
 
 {{< include _exogenous-alignments.qmd >}}
 
-## Coverage plots
+# Coverage plots
 ```{r fig.height=8, fig.width=15}
-
+#| label: coverage-plots
 # Colors for each series
 colors <- list(
   "Parental" <- list( # nolint: object_name_linter
@@ -80,7 +80,7 @@ for (rna_species in rna_mixes %>%
 
   # Get list of sample units we will plot
   sample_units_to_plot <- sample_units %>%
-    filter(sample_unit %in% names(rna_species_plot_data[[rna_species]]))
+    dplyr::filter(sample_unit %in% names(rna_species_plot_data[[rna_species]]))
 
   # Loop over days to create two overlay tracks
   day_tracks <- list()

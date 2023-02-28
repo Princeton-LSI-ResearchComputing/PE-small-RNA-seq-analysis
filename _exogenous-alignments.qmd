@@ -1,5 +1,6 @@
-### BAM reading functions
-```{r bam_functions}
+## BAM reading functions
+```{r}
+#| label: bam-functions
 rna_species_plot_range <- function(sequence_name) {
   plot_range <- rna_mixes %>%
     dplyr::filter(.data$rna_species == sequence_name) %>%
@@ -36,8 +37,8 @@ granges_from_bam <- function(sample_unit,
       on.discordant.seqnames = "drop"
     )
     rna_info <- rna_mixes %>%
-      filter(rna_species == {{ sequence_name }}) %>%
-      select(-.data$exogenous_rna) %>%
+      dplyr::filter(rna_species == {{ sequence_name }}) %>%
+      dplyr::select(-"exogenous_rna") %>%
       unique()
 
     aligned_fragments_list$active <- aligned_fragments %>%
@@ -65,8 +66,9 @@ granges_from_bam <- function(sample_unit,
 }
 ```
 
-### Read BAM coverage
+## Read BAM coverage
 ```{r}
+#| label: load-bam-coverage
 #| cache: true
 rna_species_plot_data <- list()
 for (rna_species_to_plot in rna_mixes$rna_species) {
@@ -88,8 +90,9 @@ for (rna_species_to_plot in rna_mixes$rna_species) {
 }
 ```
 
-### Organize coverage data
+## Organize coverage data
 ```{r}
+#| label: organize-coverage-data
 exogenous_rna_count_data <- tibble(
   sample_unit = character(),
   sequence_name = character(),
@@ -115,8 +118,9 @@ for (rna_species in names(rna_species_plot_data)) {
 exogenous_rna_count_data
 ```
 
-### Summarize coverage data
+## Summarize coverage data
 ```{r}
+#| label: summarize-coverage-data
 exogenous_rna_mapped_totals <- exogenous_rna_count_data %>%
   group_by(sample_unit, sequence_name) %>%
   summarize(mapped_fragments = sum(count))
