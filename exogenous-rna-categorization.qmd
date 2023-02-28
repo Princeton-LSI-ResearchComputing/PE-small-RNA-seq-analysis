@@ -150,12 +150,19 @@ granges_from_bam <- function(sample_unit,
       ),
       on.discordant.seqnames = "drop"
     )
+    rna_info <- rna_mixes %>%
+      filter(rna_species == {{sequence_name}}) %>%
+      select(-exogenous_rna) %>%
+      unique()
+    
     aligned_fragments_list$active <- aligned_fragments %>%
-      plyranges::filter(start <= 15, end >= 38)
+      plyranges::filter(start <= rna_info$active_start_max,
+                        end >= rna_info$cyptic_terminator_end)
     aligned_fragments_list$inactive <- aligned_fragments %>%
-      plyranges::filter(start > 15, end >= 38)
+      plyranges::filter(start > rna_info$active_start_max,
+                        end >= rna_info$cyptic_terminator_end)
     aligned_fragments_list$premature_termination <- aligned_fragments %>%
-      plyranges::filter(end < 38)
+      plyranges::filter(end < rna_info$cyptic_terminator_end)
   } else {
     aligned_fragments <- granges(
       readGAlignments(
