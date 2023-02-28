@@ -1,0 +1,189 @@
+---
+title: "Exogenous RNA Coverage Plots"
+author: "Lance Parsons"
+format:
+  html:
+    toc: true
+    code-fold: true
+    df-print: paged
+    embed-resources: true
+editor: source
+---
+
+# Load libraries
+
+This project uses [`renv`](https://rstudio.github.io/renv/articles/renv.html)
+to keep track of installed packages. Install `renv` if not installed and load
+dependencies with `renv::restore()`.
+
+```r
+install.packages("renv")
+renv::restore()
+```
+
+```{r}
+#| label: load-packages
+#| include: false
+#| message: false
+library("readr")
+library("dplyr")
+library("Rsamtools")
+library("tidyr")
+library("stringr")
+library("GenomicAlignments")
+library("plyranges")
+library("Gviz")
+options(ucscChromosomeNames = FALSE)
+```
+
+# Read sample data
+
+{{< include _sample-metadata.qmd >}}
+
+# Exogenous RNA counts
+
+{{< include _exogenous-alignments.qmd >}}
+
+# Coverage plots
+```{r fig.height=8, fig.width=15}
+#| label: coverage-plots
+# Colors for each series
+colors <- list(
+  "Parental" <- list( # nolint: object_name_linter
+    "active" = "#800000",
+    "inactive" = "#b4604e",
+    "premature_termination" = "#dfaea3"
+  ),
+  "P1E10" <- list( # nolint: object_name_linter
+    "active" = "#003869",
+    "inactive" = "#637499",
+    "premature_termination" = "#b0b7cb"
+  )
+)
+
+# Loop over species and plot coverage
+for (rna_species in rna_mixes %>%
+  pull(rna_species) %>%
+  unique()) {
+  gtrack <- GenomeAxisTrack()
+
+  # Read FASTA sequence and trim off description (after space)
+  dna <- readDNAStringSet(
+    sprintf("data/references/exogenous-rna/%s.fa", rna_species)
+  )
+  names(dna) <- names(dna) %>% str_remove(" +.*$")
+  sequence_track <- SequenceTrack(dna,
+    genome = rna_species,
+    chromosome = rna_species,
+    cex = 0.5
+  )
+
+  # Get list of sample units we will plot
+  sample_units_to_plot <- sample_units %>%
+    dplyr::filter(sample_unit %in% names(rna_species_plot_data[[rna_species]]))
+
+  # Loop over days to create two overlay tracks
+  day_tracks <- list()
+  day_ylims <- list()
+  days_to_plot <- sample_units_to_plot %>%
+    pull(day) %>%
+    levels()
+  for (day in days_to_plot) {
+    # Get sample units for day
+    sample_units_for_day <- sample_units_to_plot %>%
+      filter(day == {{ day }}) %>%
+      pull(sample_unit)
+
+    # Loop over sample units for this day
+    data_tracks <- list()
+    for (sample_unit in sample_units_for_day) {
+      cell_line <- sample_units_to_plot %>%
+        filter(sample_unit == {{ sample_unit }}) %>%
+        pull(cell_line)
+      for (category in
+        names(rna_species_plot_data[[rna_species]][[sample_unit]])) {
+        # Calculate coverage
+        data <- as(
+          coverage(
+            rna_species_plot_data[[rna_species]][[sample_unit]][[category]]
+          ),
+          "GRanges"
+        ) %>%
+          # Remove non-matching sequences
+          keepSeqlevels(rna_species, pruning.mode = "coarse")
+
+        # Normalize scores
+        norm_factor <- exogenous_rna_mapped_totals %>%
+          filter(
+            sample_unit == {{ sample_unit }},
+            sequence_name == {{ rna_species }}
+          ) %>%
+          pull(mapped_fragments)
+        score(data) <- score(data) / norm_factor
+
+        # Create GViz data track
+        data_track <- DataTrack(data,
+          name = day,
+          type = "l",
+          col = colors[[cell_line]][[category]],
+          strand = "*"
+        )
+        data_tracks <- c(data_tracks, data_track)
+      }
+    } # end sample_unit loop
+    day_tracks[[day]] <- OverlayTrack(trackList = data_tracks, name = day)
+    day_ylims[[day]] <- ylims <- extendrange(range(lapply(data_tracks, values)))
+  } # end day loop
+
+  start <- rna_mixes %>%
+    filter(rna_species == {{ rna_species }}) %>%
+    pull(start) %>%
+    unique()
+  end <- rna_mixes %>%
+    filter(rna_species == {{ rna_species }}) %>%
+    pull(end) %>%
+    unique()
+
+  annotations <- read_tsv(
+    sprintf("data/references/exogenous-rna/%s.bed", rna_species),
+    col_names = c("chrom", "chromStart", "chromEnd", "name"),
+    col_types = "ciic"
+  )
+
+  annotations_positions <- annotations %>%
+    dplyr::filter(name %in% c(
+      "cryptic_terminator_end", "sgRNA_end", "edit",
+      "nick", "pegRNA_end", "terminator_end"
+    ))
+
+  annotation_track <- AnnotationTrack(
+    chromosome = rna_species,
+    start = annotations$chromStart + 1,
+    end = annotations$chromEnd,
+    id = annotations$name,
+    fill = "#cfafc3",
+    featureAnnotation = "id",
+    fontcolor.feature = "#666666",
+    name = "(e)pegRNA features"
+  )
+
+  ht <- HighlightTrack(
+    trackList = c(sequence_track, annotation_track, day_tracks),
+    start = annotations_positions$chromStart + 1,
+    end = annotations_positions$chromEnd,
+    chromosome = rna_species,
+    col = "darkgrey",
+    fill = "#FFFFFF00",
+    lwd = 0.5
+  )
+
+  plotTracks(c(gtrack, ht),
+    chromosome = rna_species,
+    from = start,
+    to = end,
+    ylim = c(0, max(unlist(day_ylims))),
+    main = rna_species,
+    lwd = 3
+  )
+}
+```

@@ -1,0 +1,101 @@
+---
+title: "smallRNA Biotype Comparison"
+author: "Lance Parsons"
+format:
+  html:
+    toc: true
+    code-fold: true
+    df-print: paged
+    embed-resources: true
+editor: source
+---
+
+
+# Load libraries
+
+This project uses [`renv`](https://rstudio.github.io/renv/articles/renv.html)
+to keep track of installed packages. Install `renv` if not installed and load
+dependencies with `renv::restore()`.
+
+```r
+install.packages("renv")
+renv::restore()
+```
+
+```{r}
+#| label: load-packages
+#| include: false
+#| message: false
+library("readr")
+library("dplyr")
+library("tidyr")
+library("stringr")
+library("ggplot2")
+```
+
+# Read data
+
+{{< include _sample-metadata.qmd >}}
+
+# Biotype comparison
+
+* count only fragments that were properly aligned
+* annotate with GENCODE gene model
+* primary alignments were counted, even if the fragments aligned multiple times
+* fragments aligning to multiple features were assigned to the feature that mostly closely overlapped with the fragment
+
+```{r}
+#| label: import-biotype-counts
+human_counts_dir <- "results/smrna_count/"
+biotype_counts_files <- paste0(
+  human_counts_dir,
+  sample_units$sample_unit,
+  "_first_proper_pair_biotype_count.txt"
+)
+
+biotype_counts <- readr::read_tsv(
+  biotype_counts_files[1],
+  comment = "#",
+  col_names = c("biotype", biotype_counts_files[1]),
+  col_types = "ci"
+)
+
+for (i in 2:length(biotype_counts_files)) {
+  biotype_sample <-
+    readr::read_tsv(
+      biotype_counts_files[i],
+      comment = "#",
+      col_names = c("biotype", biotype_counts_files[i]),
+      col_types = "ci"
+    )
+
+  biotype_counts <- biotype_counts %>%
+    dplyr::full_join(biotype_sample, by = "biotype")
+}
+
+biotype_counts <- biotype_counts %>%
+  rename_all(~ stringr::str_replace_all(
+    ., human_counts_dir, ""
+  )) %>%
+  rename_all(~ str_replace_all(
+    .,
+    "_first_proper_pair_biotype_count.txt",
+    ""
+  )) %>%
+  tidyr::pivot_longer(!biotype, names_to = "sample", values_to = "count")
+
+biotype_counts
+```
+
+```{r fig.height=7, fig.width=16}
+#| label: biotype-barplot
+#| fig-height: 7
+#| fig-width: 16
+p <- ggplot(
+  data = subset(biotype_counts, !is.na(count)),
+  aes(x = sample, y = count, fill = biotype)
+) +
+  geom_bar(stat = "identity", position = "fill") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+p
+```
