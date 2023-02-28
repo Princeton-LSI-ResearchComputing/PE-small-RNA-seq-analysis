@@ -1,0 +1,48 @@
+* count only fragments that were properly aligned
+* annotate with GENCODE gene model
+* primary alignments were counted, even if the fragments aligned multiple times
+* fragments aligning to multiple features were assigned to the feature that mostly closely overlapped with the fragment
+* exogenous RNA counts are total fragments that aligned
+
+```{r}
+#| label: import-small-rna-counts
+human_counts_dir <- "results/smrna_count/"
+human_gene_counts_files <- paste0(
+  human_counts_dir,
+  sample_units$sample_unit,
+  "_first_proper_pair_gene_count.txt"
+)
+
+human_gene_counts <- readr::read_tsv(
+  human_gene_counts_files[1],
+  comment = "#",
+  col_names = c("gene", human_gene_counts_files[1]),
+  col_types = "ci"
+)
+
+for (i in 2:length(human_gene_counts_files)) {
+  gene_sample <-
+    readr::read_tsv(
+      human_gene_counts_files[i],
+      comment = "#",
+      col_names = c("gene", human_gene_counts_files[i]),
+      col_types = "ci"
+    )
+  human_gene_counts <- human_gene_counts %>%
+    dplyr::full_join(gene_sample, by = "gene")
+}
+
+human_gene_counts <- human_gene_counts %>%
+  rename_all(~ stringr::str_replace_all(
+    ., human_counts_dir, ""
+  )) %>%
+  rename_all(~ str_replace_all(., "_first_proper_pair_gene_count.txt", ""))
+
+exogenous_gene_counts <- exogenous_rna_count_data %>%
+  tidyr::unite(gene, c(sequence_name, category), sep = ":") %>%
+  tidyr::spread(sample_unit, count)
+
+gene_counts <- rbind(human_gene_counts, exogenous_gene_counts)
+
+gene_counts
+```
