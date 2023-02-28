@@ -36,134 +36,13 @@ library("Gviz")
 options(ucscChromosomeNames = FALSE)
 ```
 
-## Read data
+## Read sample data
 
 {{< include _sample-metadata.qmd >}}
 
-### BAM reading functions
-```{r bam_functions}
-rna_species_plot_range <- function(sequence_name) {
-  plot_range <- rna_mixes %>%
-    dplyr::filter(.data$rna_species == sequence_name) %>%
-    dplyr::select(start, end) %>%
-    unique()
-  return(plot_range)
-}
+## Exogenous RNA counts
 
-# GRanges from BAM
-granges_from_bam <- function(sample_unit,
-                             sequence_name,
-                             is_proper_pair = TRUE,
-                             bam_dir =
-                               "results/alignments/exogenous_rna/sorted") {
-  plot_range <- rna_species_plot_range(sequence_name)
-  which <- GRanges(
-    sprintf("%s:%i-%i", sequence_name, plot_range$start, plot_range$end)
-  )
-
-  param <- ScanBamParam(
-    flag = scanBamFlag(isProperPair = is_proper_pair),
-    mapqFilter = 1,
-    which = which
-  )
-
-  aligned_fragments_list <- list()
-
-  if (is_proper_pair) {
-    aligned_fragments <- granges(
-      readGAlignmentPairs(
-        sprintf("%s/%s.bam", bam_dir, sample_unit),
-        param = param
-      ),
-      on.discordant.seqnames = "drop"
-    )
-    rna_info <- rna_mixes %>%
-      filter(rna_species == {{ sequence_name }}) %>%
-      select(-.data$exogenous_rna) %>%
-      unique()
-
-    aligned_fragments_list$active <- aligned_fragments %>%
-      plyranges::filter(
-        start <= rna_info$active_start_max,
-        end >= rna_info$cyptic_terminator_end
-      )
-    aligned_fragments_list$inactive <- aligned_fragments %>%
-      plyranges::filter(
-        start > rna_info$active_start_max,
-        end >= rna_info$cyptic_terminator_end
-      )
-    aligned_fragments_list$premature_termination <- aligned_fragments %>%
-      plyranges::filter(end < rna_info$cyptic_terminator_end)
-  } else {
-    aligned_fragments <- granges(
-      readGAlignments(
-        sprintf("%s/%s.bam", bam_dir, sample_unit),
-        param = param
-      )
-    )
-    aligned_fragments_list$discordant <- aligned_fragments
-  }
-  return(aligned_fragments_list)
-}
-```
-
-### Read BAM coverage
-```{r}
-#| cache: true
-rna_species_plot_data <- list()
-for (rna_species_to_plot in rna_mixes$rna_species) {
-  rna_info <- rna_mixes %>%
-    dplyr::filter(rna_species == rna_species_to_plot)
-
-  sample_units_to_plot <- sample_units %>%
-    dplyr::filter(exogenous_rna %in% rna_info$exogenous_rna)
-
-  granges_to_plot <- list()
-  for (sample_unit in sample_units_to_plot$sample_unit) {
-    granges_to_plot[[sample_unit]] <- granges_from_bam(
-      sample_unit,
-      rna_species_to_plot,
-      TRUE
-    )
-  }
-  rna_species_plot_data[[rna_species_to_plot]] <- granges_to_plot
-}
-```
-
-### Organize coverage data
-```{r}
-exogenous_rna_count_data <- tibble(
-  sample_unit = character(),
-  sequence_name = character(),
-  category = character(),
-  count = numeric()
-)
-for (rna_species in names(rna_species_plot_data)) {
-  for (sample_unit in names(rna_species_plot_data[[rna_species]])) {
-    for (category in
-      names(rna_species_plot_data[[rna_species]][[sample_unit]])) {
-      exogenous_rna_count_data <- exogenous_rna_count_data %>%
-        add_row(
-          sample_unit = sample_unit,
-          sequence_name = rna_species,
-          category = category,
-          count = length(
-            rna_species_plot_data[[rna_species]][[sample_unit]][[category]]
-          )
-        )
-    }
-  }
-}
-exogenous_rna_count_data
-```
-
-### Summarize coverage data
-```{r}
-exogenous_rna_mapped_totals <- exogenous_rna_count_data %>%
-  group_by(sample_unit, sequence_name) %>%
-  summarize(mapped_fragments = sum(count))
-exogenous_rna_mapped_totals
-```
+{{< include _exogenous-alignments.qmd >}}
 
 ## Coverage plots
 ```{r fig.height=8, fig.width=15}
