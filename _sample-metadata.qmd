@@ -1,0 +1,73 @@
+Get list of samples
+
+```{r}
+samples <- read_tsv("config/samples.tsv",
+  col_types = list(
+    sample_name = col_character(),
+    cell_line = col_factor(),
+    exogenous_rna = col_factor(),
+    day = col_factor()
+  )
+)
+units <- read_tsv("config/units.tsv",
+  col_types = list(
+    sample_name = col_character(),
+    unit_name = col_character(),
+    fq1 = col_character(),
+    fq2 = col_character()
+  )
+)
+sample_units <- dplyr::left_join(samples, units, by = "sample_name") %>%
+  unite(sample_unit, sample_name, unit_name, remove = FALSE) %>%
+  mutate(
+    day = as.factor(paste0("day", day)),
+    batch = as.factor(case_when(
+      exogenous_rna == "mastermix1" ~ "batch3",
+      exogenous_rna == "mastermix2" ~ "batch3",
+      TRUE ~ "batch2"
+    )),
+    .before = cell_line,
+  )
+
+sample_units
+```
+
+Table of exogenous RNA mixtures
+
+```{r}
+# Exogenous RNA mixtures
+rna_mixes <- tibble()
+for (mix in c("mastermix1", "mastermix2", "PJY103_mDNMT1", "PJY300_mDNMT1")) {
+  t <- Biostrings::readDNAStringSet(sprintf("data/references/%s.fa", mix))
+  rna_mixes <- rbind(rna_mixes, tibble(
+    exogenous_rna = mix,
+    rna_species = word(t@ranges@NAMES, 1),
+    start = 1,
+    end = t@ranges@width
+  ))
+}
+
+rna_mixes <- rna_mixes %>%
+  mutate(
+    active_start_min = case_when(
+      exogenous_rna == "mastermix1" ~ 11,
+      exogenous_rna == "mastermix2" ~ 11,
+      exogenous_rna == "PJY103_mDNMT1" ~ 11,
+      exogenous_rna == "PJY300_mDNMT1" ~ 11
+    ),
+    active_start_max = case_when(
+      exogenous_rna == "mastermix1" ~ 14,
+      exogenous_rna == "mastermix2" ~ 14,
+      exogenous_rna == "PJY103_mDNMT1" ~ 15,
+      exogenous_rna == "PJY300_mDNMT1" ~ 15
+    ),
+    cyptic_terminator_end = case_when(
+      exogenous_rna == "mastermix1" ~ 37,
+      exogenous_rna == "mastermix2" ~ 37,
+      exogenous_rna == "PJY103_mDNMT1" ~ 38,
+      exogenous_rna == "PJY300_mDNMT1" ~ 38
+    ),
+  )
+
+rna_mixes
+```
