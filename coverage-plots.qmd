@@ -107,17 +107,25 @@ normalization_factor <- function(sample_unit, rna_species, category) {
 
 ```{r fig.height=8, fig.width=15}
 #| label: coverage-plots
-# Colors for each series
-colors <- list(
-  "Parental" <- list( # nolint: object_name_linter
-    "active" = "#800000",
-    "inactive" = "#b4604e",
-    "premature_termination" = "#dfaea3"
+# Line colors and types for each series
+plot_styles <- list(
+  "Parental" = list( # nolint: object_name_linter
+    "active_cis" = list("color" = "#800000", "lty" = "solid"),
+    "active_trans" = list("color" = "#a84d3b", "lty" = "solid"),
+    "inactive_cryptic_terminiation" = list(
+      "color" = "#cb8777",
+      "lty" = "dotted"
+    ),
+    "inactive_other" = list("color" = "#e8c2b9", "lty" = "dotted")
   ),
-  "P1E10" <- list( # nolint: object_name_linter
-    "active" = "#003869",
-    "inactive" = "#637499",
-    "premature_termination" = "#b0b7cb"
+  "P1E10" = list( # nolint: object_name_linter
+    "active_cis" = list("color" = "#003869", "lty" = "solid"),
+    "active_trans" = list("color" = "#4f648d", "lty" = "solid"),
+    "inactive_cryptic_terminiation" = list(
+      "color" = "#8995b2",
+      "lty" = "dotted"
+    ),
+    "inactive_other" = list("color" = "#c3c8d8", "lty" = "dotted")
   )
 )
 
@@ -159,7 +167,8 @@ for (rna_species in rna_mixes %>%
     for (sample_unit in sample_units_for_day) {
       cell_line <- sample_units_to_plot %>%
         filter(sample_unit == {{ sample_unit }}) %>%
-        pull(cell_line)
+        pull(cell_line) %>%
+        toString()
       for (category in
         names(rna_species_plot_data[[rna_species]][[sample_unit]])) {
         # Calculate coverage
@@ -180,7 +189,8 @@ for (rna_species in rna_mixes %>%
         data_track <- DataTrack(data,
           name = day,
           type = "l",
-          col = colors[[cell_line]][[category]],
+          col = plot_styles[[cell_line]][[category]]$color,
+          lty = plot_styles[[cell_line]][[{{ category }}]]$lty,
           strand = "*"
         )
         data_tracks <- c(data_tracks, data_track)

@@ -41,18 +41,43 @@ granges_from_bam <- function(sample_unit,
       dplyr::select(-"exogenous_rna") %>%
       unique()
 
-    aligned_fragments_list$active <- aligned_fragments %>%
+    # Active in cis
+    aligned_fragments_list$active_cis <- aligned_fragments %>%
       plyranges::filter(
-        start <= rna_info$active_start_max,
-        end >= rna_info$cyptic_terminator_end
+        start <= rna_info$active_cis_start_max,
+        end >= rna_info$active_cis_end_min
       )
-    aligned_fragments_list$inactive <- aligned_fragments %>%
+
+    # Active in trans
+    aligned_fragments_list$active_trans <- aligned_fragments %>%
       plyranges::filter(
-        start > rna_info$active_start_max,
-        end >= rna_info$cyptic_terminator_end
+        start > rna_info$active_cis_start_max,
+        start <= rna_info$active_trans_start_max,
+        end >= rna_info$active_trans_end_min
       )
-    aligned_fragments_list$premature_termination <- aligned_fragments %>%
-      plyranges::filter(end < rna_info$cyptic_terminator_end)
+
+    # Inactive Cryptic Termination
+    aligned_fragments_list$inactive_cryptic_terminiation <-
+      aligned_fragments %>%
+      plyranges::filter(end < rna_info$inactive_ct_end_max)
+
+    # Inactive Other
+    aligned_fragments_list$inactive_other <- plyranges::bind_ranges(
+      aligned_fragments %>%
+        plyranges::filter(
+          start <= rna_info$active_cis_start_max,
+          end < rna_info$active_cis_end_min,
+          end > rna_info$inactive_ct_end_max
+        ),
+      aligned_fragments %>%
+        plyranges::filter(
+          start > rna_info$active_cis_start_max,
+          (
+            start > rna_info$active_trans_start_max |
+              end < rna_info$active_trans_end_min
+          )
+        ),
+    )
   } else {
     aligned_fragments <- granges(
       readGAlignments(
