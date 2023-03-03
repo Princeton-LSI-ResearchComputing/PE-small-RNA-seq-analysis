@@ -8,6 +8,9 @@ format:
     df-print: paged
     embed-resources: true
 editor: source
+params:
+  normalization: "human_small_rna"
+  # human_small_rna, exogenous_rna, exogenous_rna_total
 ---
 
 # Load libraries
@@ -44,7 +47,64 @@ options(ucscChromosomeNames = FALSE)
 
 {{< include _exogenous-alignments.qmd >}}
 
-# Coverage plots
+# Human small RNA gene counts
+
+{{< include _human-small-rna-counts.qmd >}}
+
+```{r}
+#| label: get-normalization-text
+normalization_text_options <- list(
+  "human_small_rna" = "Total Human Small RNA",
+  "exogenous_rna" = "Total Exogeouns RNA",
+  "exogenous_rna_category" = "Exegenous RNA Activity Category"
+)
+normalization_text <- normalization_text_options[[params$normalization]]
+```
+
+# Coverage plots: Normalized by `r normalization_text`
+
+```{r}
+#| label: get-normalization-factor
+
+normalization_factor <- function(sample_unit, rna_species, category) {
+  norm_factor <- NA
+  if (params$normalization == "human_small_rna") {
+    # Total number of human small rna fragments
+    norm_factor <- gene_counts %>%
+      pivot_longer(
+        cols = -"gene",
+        names_to = "sample_unit",
+        values_to = "count"
+      ) %>%
+      group_by(.data$sample_unit) %>%
+      summarize(count = sum(.data$count, na.rm = TRUE)) %>%
+      dplyr::filter(.data$sample_unit == !!sample_unit) %>%
+      pull(count)
+  } else if (params$normalization == "exogenous_rna") {
+    # Total number of exogenous rna fragments
+    norm_factor <- exogenous_rna_mapped_totals %>%
+      dplyr::filter(
+        .data$sample_unit == !!sample_unit,
+        .data$sequence_name == !!rna_species
+      ) %>%
+      dplyr::pull("mapped_fragments")
+  } else if (params$normalization == "exogenous_rna_category") {
+    # Number of exogenous rna fragments in a given category
+    norm_factor <- exogenous_rna_count_data %>%
+      dplyr::filter(
+        sample_unit == !!sample_unit,
+        sequence_name == !!rna_species,
+        category == !!category
+      ) %>%
+      pull(count)
+  } else {
+    # Invalid normalization parameter
+    stop(sprintf("Invalid normalization parameter %s", params$normalization))
+  }
+  return(norm_factor)
+}
+```
+
 ```{r fig.height=8, fig.width=15}
 #| label: coverage-plots
 # Colors for each series
@@ -113,12 +173,7 @@ for (rna_species in rna_mixes %>%
           keepSeqlevels(rna_species, pruning.mode = "coarse")
 
         # Normalize scores
-        norm_factor <- exogenous_rna_mapped_totals %>%
-          filter(
-            sample_unit == {{ sample_unit }},
-            sequence_name == {{ rna_species }}
-          ) %>%
-          pull(mapped_fragments)
+        norm_factor <- normalization_factor(sample_unit, rna_species, category)
         score(data) <- score(data) / norm_factor
 
         # Create GViz data track
