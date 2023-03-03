@@ -1,3 +1,5 @@
+source("pegrna_plots.R")
+
 pegrna_alignment_strandedness <- function(sequence_name,
                                           mix = NA,
                                           start_offset = NA) {
@@ -25,7 +27,10 @@ pegrna_alignment_strandedness <- function(sequence_name,
       concordant_granges <- plot_data[[s]][["concordant_granges"]]
       start_site <- GRanges(
         seqnames = rna_species,
-        ranges = IRanges(start = plot_range$start, end = plot_range$start + start_offset)
+        ranges = IRanges(
+          start = plot_range$start,
+          end = plot_range$start + start_offset
+        )
       )
       primary_granges <- subsetByOverlaps(concordant_granges, start_site)
       primary_type <- "concordant_full"

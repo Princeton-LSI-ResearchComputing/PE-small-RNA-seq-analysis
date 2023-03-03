@@ -51,35 +51,38 @@ for (sample in sample_units$sample_unit) {
   num_col <- max(count.fields(brc_file, sep = "\t"))
   fixed_col <- c("chr", "position", "reference_base", "depth")
   stats_col <- paste0("X", 1:(num_col - length(fixed_col)))
-  
+
   brc_file_data <- meltr::melt_tsv(brc_file) %>%
     pivot_wider(names_from = col, id_cols = !data_type) %>%
     magrittr::set_colnames(c("row", fixed_col, stats_col)) %>%
-  pivot_longer(cols = starts_with("X"), values_to = "alternate_base_stats") %>%
-  separate(
-    alternate_base_stats,
-    c(
-      "base",
-      "count",
-      "avg_mapping_quality",
-      "avg_basequality",
-      "avg_se_mapping_quality",
-      "num_plus_strand",
-      "num_minus_strand",
-      "avg_pos_as_fraction",
-      "avg_num_mismatches_as_fraction",
-      "avg_sum_mismatch_qualities",
-      "num_q2_containing_reads",
-      "avg_distance_to_q2_start_in_q2_reads",
-      "avg_clipped_length",
-      "avg_distance_to_effective_3p_end"
-    ),
-    sep = ":", convert = TRUE
-  ) %>%
-  mutate(across(c(position, depth), as.integer)) %>%
-  mutate(sample = sample, .before = row) %>%
-  select(-row) %>%
-  na.omit()
+    pivot_longer(
+      cols = starts_with("X"),
+      values_to = "alternate_base_stats"
+    ) %>%
+    separate(
+      alternate_base_stats,
+      c(
+        "base",
+        "count",
+        "avg_mapping_quality",
+        "avg_basequality",
+        "avg_se_mapping_quality",
+        "num_plus_strand",
+        "num_minus_strand",
+        "avg_pos_as_fraction",
+        "avg_num_mismatches_as_fraction",
+        "avg_sum_mismatch_qualities",
+        "num_q2_containing_reads",
+        "avg_distance_to_q2_start_in_q2_reads",
+        "avg_clipped_length",
+        "avg_distance_to_effective_3p_end"
+      ),
+      sep = ":", convert = TRUE
+    ) %>%
+    mutate(across(c(position, depth), as.integer)) %>%
+    mutate(sample = sample, .before = row) %>%
+    select(-row) %>%
+    na.omit()
 
   brc_data <- rbind(brc_data, brc_file_data)
 }
@@ -88,9 +91,9 @@ for (sample in sample_units$sample_unit) {
 3. Plot counts
 
 ```{r prepare_plot_data}
-plot_data <- 
+plot_data <-
   brc_data %>%
-  dplyr::filter(grepl('PJY300', sample)) %>%
+  dplyr::filter(grepl("PJY300", sample)) %>%
   dplyr::filter(count > 0) %>%
   # riboswitch 454 | 490
   dplyr::filter(position >= 454 & position <= 490) %>%
@@ -98,8 +101,11 @@ plot_data <-
     base == reference_base ~ "reference",
     stringr::str_detect(base, "^\\+") ~ "insertion",
     stringr::str_detect(base, "^-") ~ "deletion",
-    TRUE ~ base)) %>%
-  mutate(plot_base = forcats::fct_relevel(plot_base, "reference", "A", "C", "G", "T", "N", "insertion", "deletion"))
+    TRUE ~ base
+  )) %>%
+  mutate(plot_base = forcats::fct_relevel(
+    plot_base, "reference", "A", "C", "G", "T", "N", "insertion", "deletion"
+  ))
 ```
 
 
@@ -108,14 +114,20 @@ num_colors <- length(unique(plot_data$plot_base))
 plot_colors <- scales::hue_pal()(num_colors)
 plot_colors <- c("#DDDDDD00", plot_colors)
 
-reference <- plot_data %>% select(position, reference_base) %>% unique()
+reference <- plot_data %>%
+  select(position, reference_base) %>%
+  unique()
 
 ggplot(
   plot_data,
-  aes(fill = plot_base, y = count, x = position)) +
+  aes(fill = plot_base, y = count, x = position)
+) +
   geom_bar(position = "fill", stat = "identity") +
-  scale_x_continuous(breaks = reference$position, labels = reference$reference_base) +
-  facet_wrap(~ sample, ncol = 1) +
+  scale_x_continuous(
+    breaks = reference$position,
+    labels = reference$reference_base
+  ) +
+  facet_wrap(~sample, ncol = 1) +
   scale_fill_manual(values = plot_colors) +
   xlab("Reference Base") +
   theme(legend.position = "bottom")

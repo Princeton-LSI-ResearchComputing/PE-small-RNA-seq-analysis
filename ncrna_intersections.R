@@ -2,7 +2,10 @@ library("UpSetR")
 library("readr")
 
 ncrna_intersections <- read_tsv(
-  "data/references/rna_central/genome_coordinates/homo_sapiens.GRCh38.multiinter.tsv",
+  paste0(
+    "data/references/rna_central/genome_coordinates/",
+    "homo_sapiens.GRCh38.multiinter.tsv"
+  ),
   col_types = list(
     chrom = col_character(),
     start = col_integer(),
@@ -13,7 +16,8 @@ ncrna_intersections <- read_tsv(
   )
 )
 
-ncrna_upset_data <- ncrna_intersections %>% dplyr::select(-chrom, -start, -end, -num, -list)
+ncrna_upset_data <- ncrna_intersections %>%
+  dplyr::select(-chrom, -start, -end, -num, -list)
 
 upset(ncrna_upset_data, main.bar.color = "black")
 

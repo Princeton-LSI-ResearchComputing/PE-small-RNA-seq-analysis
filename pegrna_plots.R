@@ -9,7 +9,9 @@ rna_species_plot_range <- function(sequence_name) {
 ### GRanges from BAM
 granges_from_bam <- function(sample_unit, sequence_name, is_proper_pair) {
   plot_range <- rna_species_plot_range(sequence_name)
-  which <- GRanges(sprintf("%s:%i-%i", sequence_name, plot_range$start, plot_range$end))
+  which <- GRanges(sprintf(
+    "%s:%i-%i", sequence_name, plot_range$start, plot_range$end
+  ))
 
   param <- ScanBamParam(
     flag = scanBamFlag(isProperPair = is_proper_pair),
@@ -114,14 +116,13 @@ pegrna_plots <- function(sequence_name,
                          ylab,
                          vlines = NA,
                          start_offset = NA) {
-  
   plot_data <- get_pegrna_plot_data(
     sequence_name = sequence_name,
     normalization_factor = normalization_factor,
     mix = mix
   )
   plot_range <- rna_species_plot_range(sequence_name)
-  
+
   # Find largest value for rna_species
   if (is.na(ylim)) {
     m <- 0
@@ -150,18 +151,27 @@ pegrna_plots <- function(sequence_name,
       normalization_read_count <- plot_data[[s]][["normalization_read_count"]]
       start_site <- GRanges(
         seqnames = rna_species,
-        ranges = IRanges(start = plot_range$start, end = plot_range$start + start_offset)
+        ranges = IRanges(
+          start = plot_range$start,
+          end = plot_range$start + start_offset
+        )
       )
       full_length_granges <- subsetByOverlaps(concordant_granges, start_site)
       partial_granges <-
         concordant_granges[concordant_granges %outside% start_site]
       series_data_concordant <-
         coverage(full_length_granges)[[sequence_name]] /
-        normalization_read_count
+          normalization_read_count
       series_data_discordant <-
         coverage(partial_granges)[[sequence_name]] / normalization_read_count
-      concordant_legend_text <- sprintf("Start within %s bp of 5'", start_offset)
-      discordant_legend_text <- sprintf("Start after %s bp of 5'", start_offset)
+      concordant_legend_text <- sprintf(
+        "Start within %s bp of 5'",
+        start_offset
+      )
+      discordant_legend_text <- sprintf(
+        "Start after %s bp of 5'",
+        start_offset
+      )
     }
 
 
