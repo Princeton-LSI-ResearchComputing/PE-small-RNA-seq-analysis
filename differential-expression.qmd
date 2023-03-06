@@ -83,6 +83,7 @@ dds <- DESeqDataSetFromMatrix(
 )
 dds
 ```
+
 ## Sample comparisons
 
 ### Variance Stabalized Transformation
