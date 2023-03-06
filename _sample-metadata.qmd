@@ -51,23 +51,53 @@ for (mix in c("mastermix1", "mastermix2", "PJY103_mDNMT1", "PJY300_mDNMT1")) {
 
 rna_mixes <- rna_mixes %>%
   mutate(
-    active_start_min = case_when(
-      exogenous_rna == "mastermix1" ~ 11,
-      exogenous_rna == "mastermix2" ~ 11,
-      exogenous_rna == "PJY103_mDNMT1" ~ 11,
-      exogenous_rna == "PJY300_mDNMT1" ~ 11
+    active_cis_start_max = case_when(
+      exogenous_rna == "PJY103_mDNMT1" ~ 16,
+      exogenous_rna == "PJY300_mDNMT1" ~ 16,
+      exogenous_rna == "mastermix1" ~ 15,
+      exogenous_rna == "mastermix2" ~ 15
     ),
-    active_start_max = case_when(
-      exogenous_rna == "mastermix1" ~ 14,
-      exogenous_rna == "mastermix2" ~ 14,
-      exogenous_rna == "PJY103_mDNMT1" ~ 15,
-      exogenous_rna == "PJY300_mDNMT1" ~ 15
+    active_cis_end_min = case_when(
+      exogenous_rna == "PJY103_mDNMT1" ~ 74,
+      exogenous_rna == "PJY300_mDNMT1" ~ 74,
+      exogenous_rna == "mastermix1" ~ 73,
+      exogenous_rna == "mastermix2" ~ 73
     ),
-    cyptic_terminator_end = case_when(
-      exogenous_rna == "mastermix1" ~ 37,
-      exogenous_rna == "mastermix2" ~ 37,
+    inactive_ct_end_max = case_when(
       exogenous_rna == "PJY103_mDNMT1" ~ 38,
-      exogenous_rna == "PJY300_mDNMT1" ~ 38
+      exogenous_rna == "PJY300_mDNMT1" ~ 38,
+      exogenous_rna == "mastermix1" ~ 37,
+      exogenous_rna == "mastermix2" ~ 37
+    ),
+    active_trans_start_max = case_when(
+      rna_species == "PJY103_mDNMT1" ~ 115,
+      rna_species == "PJY300_mDNMT1" ~ 115,
+      rna_species == "PJY179_FANCF" ~ 119,
+      rna_species == "PJY181_HEK3" ~ 120,
+      rna_species == "PJY182_HEK3" ~ 120,
+      rna_species == "PJY183_DNMT1" ~ 113,
+      rna_species == "PJY184_DNMT1" ~ 113,
+      rna_species == "PJY186_RUNX1" ~ 117,
+      rna_species == "PJY185_RUNX1" ~ 117,
+      rna_species == "PJY187_VEGFA" ~ 124,
+      rna_species == "PJY306_EMX1" ~ 118,
+      rna_species == "PJY302_EMX1" ~ 118,
+      rna_species == "PJY177_RNF2" ~ 120
+    ),
+    active_trans_end_min = case_when(
+      rna_species == "PJY103_mDNMT1" ~ 121,
+      rna_species == "PJY300_mDNMT1" ~ 121,
+      rna_species == "PJY179_FANCF" ~ 124,
+      rna_species == "PJY181_HEK3" ~ 121,
+      rna_species == "PJY182_HEK3" ~ 121,
+      rna_species == "PJY183_DNMT1" ~ 118,
+      rna_species == "PJY184_DNMT1" ~ 118,
+      rna_species == "PJY186_RUNX1" ~ 122,
+      rna_species == "PJY185_RUNX1" ~ 122,
+      rna_species == "PJY187_VEGFA" ~ 129,
+      rna_species == "PJY306_EMX1" ~ 123,
+      rna_species == "PJY302_EMX1" ~ 123,
+      rna_species == "PJY177_RNF2" ~ 121
     ),
   )
 
