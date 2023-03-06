@@ -182,13 +182,19 @@ write_tsv(res_batch2_day1_lfc_df, file = "diffexp_results_batch2_day1.tsv")
 
 res_batch2_day1_lfc_labelled <- res_batch2_day1_lfc_df %>%
   dplyr::filter(gene %in% exogenous_rna_names) %>%
-  na.omit()
+  na.omit() %>%
+  arrange(gene)
 
 ggplot(
   res_batch2_day1_lfc_df,
   aes(x = log2(baseMean), y = log2FoldChange, colour = significant)
 ) +
   geom_point() +
+  scale_colour_hue(c = 45, l = 80, na.value = "#cccccc") +
+  geom_point(
+    data = res_batch2_day1_lfc_labelled,
+    color = "red", size = 3
+  ) +
   ggrepel::geom_label_repel(
     data = res_batch2_day1_lfc_labelled,
     aes(label = gene, segment.colour = "black"),
@@ -201,10 +207,10 @@ ggplot(
 ### Counts of exogenous rna
 
 Plot of counts for a single gene (with lowest adjusted p-value)
-```{r fig.height=5, fig.width=10}
+```{r fig.height=8, fig.width=20}
 #| label: batch-2-day-1-exogenous-counts
-#| fig-height: 5
-#| fig-width: 10
+#| fig-height: 8
+#| fig-width: 20
 plot_list <- list()
 for (gene in res_batch2_day1_lfc_labelled$gene) {
   gene_prefix <- str_split(gene, "_")[[1]][1]
@@ -223,7 +229,7 @@ for (gene in res_batch2_day1_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list)
+cowplot::plot_grid(plotlist = plot_list, ncol = 5)
 ```
 
 
@@ -279,13 +285,19 @@ write_tsv(res_batch2_day2_lfc_df, file = "diffexp_results_batch2_day2.tsv")
 
 res_batch2_day2_lfc_labelled <- res_batch2_day2_lfc_df %>%
   dplyr::filter(gene %in% exogenous_rna_names) %>%
-  na.omit()
+  na.omit() %>%
+  arrange(gene)
 
 ggplot(
   res_batch2_day2_lfc_df,
   aes(x = log2(baseMean), y = log2FoldChange, color = significant)
 ) +
   geom_point() +
+  scale_colour_hue(c = 45, l = 80, na.value = "#cccccc") +
+  geom_point(
+    data = res_batch2_day2_lfc_labelled,
+    color = "red", size = 3
+  ) +
   ggrepel::geom_label_repel(
     data = res_batch2_day2_lfc_labelled,
     aes(label = gene, segment.colour = "black"),
@@ -298,10 +310,10 @@ ggplot(
 ### Counts of exogenous rna
 
 Plot of counts for a single gene (with lowest adjusted p-value)
-```{r fig.height=5, fig.width=10}
+```{r fig.height=8, fig.width=20}
 #| label: batch-2-day-2-exogenous-counts
-#| fig-height: 5
-#| fig-width: 10
+#| fig-height: 8
+#| fig-width: 20
 plot_list <- list()
 for (gene in res_batch2_day2_lfc_labelled$gene) {
   gene_prefix <- str_split(gene, "_")[[1]][1]
@@ -320,7 +332,7 @@ for (gene in res_batch2_day2_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list)
+cowplot::plot_grid(plotlist = plot_list, ncol = 5)
 ```
 
 
@@ -377,13 +389,19 @@ write_tsv(res_batch3_day1_lfc_df, file = "diffexp_results_batch3_day1.tsv")
 
 res_batch3_day1_lfc_labelled <- res_batch3_day1_lfc_df %>%
   dplyr::filter(gene %in% exogenous_rna_names) %>%
-  na.omit()
+  na.omit() %>%
+  arrange(gene)
 
 ggplot(
   res_batch3_day1_lfc_df,
   aes(x = log2(baseMean), y = log2FoldChange, colour = significant)
 ) +
   geom_point() +
+  scale_colour_hue(c = 45, l = 80, na.value = "#cccccc") +
+  geom_point(
+    data = res_batch3_day1_lfc_labelled,
+    color = "red", size = 3
+  ) +
   ggrepel::geom_label_repel(
     data = res_batch3_day1_lfc_labelled,
     aes(label = gene, segment.colour = "black"),
@@ -398,10 +416,10 @@ ggplot(
 ### Counts of exogenous rna
 
 Plot of counts for a single gene (with lowest adjusted p-value)
-```{r fig.height=25, fig.width=10}
+```{r fig.height=30, fig.width=20}
 #| label: batch-3-day-1-exogenous-counts
-#| fig-height: 25
-#| fig-width: 10
+#| fig-height: 30
+#| fig-width: 20
 plot_list <- list()
 for (gene in res_batch3_day1_lfc_labelled$gene) {
   gene_rna_type <- str_split(gene, ":")[[1]][1]
@@ -425,7 +443,7 @@ for (gene in res_batch3_day1_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list, ncol = 3)
+cowplot::plot_grid(plotlist = plot_list, ncol = 5)
 ```
 
 
@@ -483,13 +501,19 @@ write_tsv(res_batch3_day2_lfc_df, file = "diffexp_results_batch3_day2.tsv")
 
 res_batch3_day2_lfc_labelled <- res_batch3_day2_lfc_df %>%
   dplyr::filter(gene %in% exogenous_rna_names) %>%
-  na.omit()
+  na.omit() %>%
+  arrange(gene)
 
 ggplot(
   res_batch3_day2_lfc_df,
   aes(x = log2(baseMean), y = log2FoldChange, color = significant)
 ) +
   geom_point() +
+  scale_colour_hue(c = 45, l = 80, na.value = "#cccccc") +
+  geom_point(
+    data = res_batch3_day2_lfc_labelled,
+    color = "red", size = 3
+  ) +
   ggrepel::geom_label_repel(
     data = res_batch3_day2_lfc_labelled,
     mapping = aes(label = gene, segment.colour = "black"),
@@ -504,10 +528,10 @@ ggplot(
 ### Counts of exogenous rna
 
 Plot of counts for a single gene (with lowest adjusted p-value)
-```{r fig.height=25, fig.width=10}
+```{r fig.height=30, fig.width=20}
 #| label: batch-3-day-2-exogenous-counts
-#| fig-height: 25
-#| fig-width: 10
+#| fig-height: 30
+#| fig-width: 20
 plot_list <- list()
 for (gene in res_batch3_day2_lfc_labelled$gene) {
   gene_rna_type <- str_split(gene, ":")[[1]][1]
@@ -531,5 +555,5 @@ for (gene in res_batch3_day2_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list, ncol = 3)
+cowplot::plot_grid(plotlist = plot_list, ncol = 5)
 ```
