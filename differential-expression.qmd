@@ -7,6 +7,7 @@ format:
     code-fold: true
     df-print: paged
     embed-resources: true
+    page-layout: full
 editor: source
 ---
 
@@ -37,6 +38,7 @@ library("tibble")
 library("pheatmap")
 library("ggplot2")
 library("ggrepel")
+library("ggnewscale")
 library("DESeq2")
 library("apeglm")
 library("RColorBrewer")
@@ -63,7 +65,6 @@ register(MulticoreParam(4))
 exogenous_rna_names <- gene_counts %>%
   dplyr::filter(str_detect(gene, "^PJY")) %>%
   pull(gene)
-exogenous_rna_names
 ```
 
 ## Import sample metadata and counts into DESeq2
@@ -83,6 +84,7 @@ dds <- DESeqDataSetFromMatrix(
 )
 dds
 ```
+
 ## Sample comparisons
 
 ### Variance Stabalized Transformation
@@ -168,42 +170,56 @@ res_batch2_day1_lfc <- lfcShrink(dds_batch2_day1,
 ### MA Plot (lfc shrunk)
 
 MA Plot of shrunken log2 fold changes
-```{r fig.height=10, fig.width=10}
+```{r fig.height=8, fig.width=10}
 #| label: batch-2-day-1-ma-plot
-#| fig-height: 10
+#| fig-height: 8
 #| fig-width: 10
 res_batch2_day1_lfc_df <- res_batch2_day1_lfc %>%
   as.data.frame() %>%
   rownames_to_column("gene") %>%
-  dplyr::mutate(significant = padj < 0.05)
+  dplyr::mutate(significant = as.factor(padj < 0.05))
 
 write_tsv(res_batch2_day1_lfc_df, file = "diffexp_results_batch2_day1.tsv")
 
 res_batch2_day1_lfc_labelled <- res_batch2_day1_lfc_df %>%
   dplyr::filter(gene %in% exogenous_rna_names) %>%
-  na.omit()
+  na.omit() %>%
+  arrange(gene)
 
 ggplot(
   res_batch2_day1_lfc_df,
   aes(x = log2(baseMean), y = log2FoldChange, colour = significant)
 ) +
   geom_point() +
+  scale_colour_hue(c = 45, l = 80, na.value = "#cccccc") +
+  geom_point(
+    data = res_batch2_day1_lfc_labelled,
+    color = "red", size = 3
+  ) +
+  new_scale_color() +
+  scale_colour_hue(
+    c = 100, l = 65, na.value = "#cccccc",
+    drop = FALSE
+  ) +
   ggrepel::geom_label_repel(
     data = res_batch2_day1_lfc_labelled,
-    aes(label = gene, segment.colour = "black"),
+    aes(label = gene, segment.colour = "black", color = significant),
     min.segment.length = 0,
+    max.overlaps = 30,
+    size = 3,
     show.legend = FALSE
   ) +
+  ggtitle("Batch 2 | Day 1") +
   theme_bw()
 ```
 
 ### Counts of exogenous rna
 
 Plot of counts for a single gene (with lowest adjusted p-value)
-```{r fig.height=5, fig.width=10}
+```{r fig.height=8, fig.width=20}
 #| label: batch-2-day-1-exogenous-counts
-#| fig-height: 5
-#| fig-width: 10
+#| fig-height: 8
+#| fig-width: 20
 plot_list <- list()
 for (gene in res_batch2_day1_lfc_labelled$gene) {
   gene_prefix <- str_split(gene, "_")[[1]][1]
@@ -222,7 +238,7 @@ for (gene in res_batch2_day1_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list)
+cowplot::plot_grid(plotlist = plot_list, ncol = 5)
 ```
 
 
@@ -265,42 +281,56 @@ res_batch2_day2_lfc <- lfcShrink(dds_batch2_day2,
 ### MA Plot (lfc shrunk)
 
 MA Plot of shrunken log2 fold changes
-```{r fig.height=10, fig.width=10}
+```{r fig.height=8, fig.width=10}
 #| label: batch-2-day-2-ma-plot
-#| fig-height: 10
+#| fig-height: 8
 #| fig-width: 10
 res_batch2_day2_lfc_df <- res_batch2_day2_lfc %>%
   as.data.frame() %>%
   rownames_to_column("gene") %>%
-  dplyr::mutate(significant = padj < 0.05)
+  dplyr::mutate(significant = as.factor(padj < 0.05))
 
 write_tsv(res_batch2_day2_lfc_df, file = "diffexp_results_batch2_day2.tsv")
 
 res_batch2_day2_lfc_labelled <- res_batch2_day2_lfc_df %>%
   dplyr::filter(gene %in% exogenous_rna_names) %>%
-  na.omit()
+  na.omit() %>%
+  arrange(gene)
 
 ggplot(
   res_batch2_day2_lfc_df,
   aes(x = log2(baseMean), y = log2FoldChange, color = significant)
 ) +
   geom_point() +
+  scale_colour_hue(c = 45, l = 80, na.value = "#cccccc") +
+  geom_point(
+    data = res_batch2_day2_lfc_labelled,
+    color = "red", size = 3
+  ) +
+  new_scale_color() +
+  scale_colour_hue(
+    c = 100, l = 65, na.value = "#cccccc",
+    drop = FALSE
+  ) +
   ggrepel::geom_label_repel(
     data = res_batch2_day2_lfc_labelled,
-    aes(label = gene, segment.colour = "black"),
+    aes(label = gene, segment.colour = "black", color = significant),
     min.segment.length = 0,
+    max.overlaps = 30,
+    size = 3,
     show.legend = FALSE
   ) +
+  ggtitle("Batch 2 | Day 2") +
   theme_bw()
 ```
 
 ### Counts of exogenous rna
 
 Plot of counts for a single gene (with lowest adjusted p-value)
-```{r fig.height=5, fig.width=10}
+```{r fig.height=8, fig.width=20}
 #| label: batch-2-day-2-exogenous-counts
-#| fig-height: 5
-#| fig-width: 10
+#| fig-height: 8
+#| fig-width: 20
 plot_list <- list()
 for (gene in res_batch2_day2_lfc_labelled$gene) {
   gene_prefix <- str_split(gene, "_")[[1]][1]
@@ -319,7 +349,7 @@ for (gene in res_batch2_day2_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list)
+cowplot::plot_grid(plotlist = plot_list, ncol = 5)
 ```
 
 
@@ -363,44 +393,70 @@ res_batch3_day1_lfc <- lfcShrink(dds_batch3_day1,
 ### MA Plot (lfc shrunk)
 
 MA Plot of shrunken log2 fold changes
-```{r fig.height=10, fig.width=10}
+```{r fig.height=8, fig.width=10}
 #| label: batch-3-day-1-ma-plot
-#| fig-height: 10
+#| fig-height: 8
 #| fig-width: 10
 res_batch3_day1_lfc_df <- res_batch3_day1_lfc %>%
   as.data.frame() %>%
   rownames_to_column("gene") %>%
-  dplyr::mutate(significant = padj < 0.05)
+  dplyr::mutate(significant = as.factor(padj < 0.05))
 
 write_tsv(res_batch3_day1_lfc_df, file = "diffexp_results_batch3_day1.tsv")
 
-res_batch3_day1_lfc_labelled <- res_batch3_day1_lfc_df %>%
-  dplyr::filter(gene %in% exogenous_rna_names) %>%
-  na.omit()
+# Loop over categories, labeling only one at a time
+categories <- c(unique(exogenous_rna_count_data$category), "total")
+plot_list <- list()
 
-ggplot(
-  res_batch3_day1_lfc_df,
-  aes(x = log2(baseMean), y = log2FoldChange, colour = significant)
-) +
-  geom_point() +
-  ggrepel::geom_label_repel(
-    data = res_batch3_day1_lfc_labelled,
-    aes(label = gene, segment.colour = "black"),
-    min.segment.length = 0,
-    max.overlaps = 30,
-    size = 2.5,
-    show.legend = FALSE
+for (category in categories) {
+  res_batch3_day1_lfc_labelled <- res_batch3_day1_lfc_df %>%
+    dplyr::filter(gene %in% exogenous_rna_names) %>%
+    na.omit() %>%
+    dplyr::filter(str_detect(gene, paste0(category, "$"))) %>%
+    arrange(gene)
+
+  p <- ggplot(
+    res_batch3_day1_lfc_df,
+    aes(x = log2(baseMean), y = log2FoldChange, colour = significant)
   ) +
-  theme_bw()
+    geom_point() +
+    scale_colour_hue(c = 45, l = 80, na.value = "#cccccc") +
+    geom_point(
+      data = res_batch3_day1_lfc_labelled,
+      color = "red", size = 3
+    ) +
+    new_scale_color() +
+    scale_colour_hue(
+      c = 100, l = 65, na.value = "#cccccc",
+      drop = FALSE
+    ) +
+    ggrepel::geom_label_repel(
+      data = res_batch3_day1_lfc_labelled,
+      aes(label = gene, segment.colour = "black", colour = significant),
+      min.segment.length = 0,
+      max.overlaps = 30,
+      size = 3,
+      show.legend = FALSE
+    ) +
+    ggtitle(paste0("Batch 3 | Day 1 | ", category)) +
+    theme_bw()
+  plot_list[[category]] <- p
+  print(p)
+}
 ```
 
 ### Counts of exogenous rna
 
 Plot of counts for a single gene (with lowest adjusted p-value)
-```{r fig.height=25, fig.width=10}
+```{r fig.height=30, fig.width=20}
 #| label: batch-3-day-1-exogenous-counts
-#| fig-height: 25
-#| fig-width: 10
+#| fig-height: 30
+#| fig-width: 20
+res_batch3_day1_lfc_labelled <- res_batch3_day1_lfc_df %>%
+  dplyr::filter(gene %in% exogenous_rna_names) %>%
+  na.omit() %>%
+  arrange(gene)
+
 plot_list <- list()
 for (gene in res_batch3_day1_lfc_labelled$gene) {
   gene_rna_type <- str_split(gene, ":")[[1]][1]
@@ -424,7 +480,7 @@ for (gene in res_batch3_day1_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list, ncol = 3)
+cowplot::plot_grid(plotlist = plot_list, ncol = 5)
 ```
 
 
@@ -469,44 +525,71 @@ res_batch3_day2_lfc <- lfcShrink(dds_batch3_day2,
 ### MA Plot (lfc shrunk)
 
 MA Plot of shrunken log2 fold changes
-```{r fig.height=10, fig.width=10}
+```{r fig.height=8, fig.width=10}
 #| label: batch-3-day-2-ma-plot
-#| fig-height: 10
+#| fig-height: 8
 #| fig-width: 10
 res_batch3_day2_lfc_df <- res_batch3_day2_lfc %>%
   as.data.frame() %>%
   rownames_to_column("gene") %>%
-  dplyr::mutate(significant = padj < 0.05)
+  dplyr::mutate(significant = as.factor(padj < 0.05))
 
 write_tsv(res_batch3_day2_lfc_df, file = "diffexp_results_batch3_day2.tsv")
 
-res_batch3_day2_lfc_labelled <- res_batch3_day2_lfc_df %>%
-  dplyr::filter(gene %in% exogenous_rna_names) %>%
-  na.omit()
+# Loop over categories, labeling only one at a time
+categories <- c(unique(exogenous_rna_count_data$category), "total")
+plot_list <- list()
 
-ggplot(
-  res_batch3_day2_lfc_df,
-  aes(x = log2(baseMean), y = log2FoldChange, color = significant)
-) +
-  geom_point() +
-  ggrepel::geom_label_repel(
-    data = res_batch3_day2_lfc_labelled,
-    mapping = aes(label = gene, segment.colour = "black"),
-    min.segment.length = 0,
-    max.overlaps = 30,
-    size = 2.5,
-    show.legend = FALSE
+for (category in categories) {
+  res_batch3_day2_lfc_labelled <- res_batch3_day2_lfc_df %>%
+    dplyr::filter(gene %in% exogenous_rna_names) %>%
+    na.omit() %>%
+    dplyr::filter(str_detect(gene, paste0(category, "$"))) %>%
+    arrange(gene)
+
+  p <- ggplot(
+    res_batch3_day2_lfc_df,
+    aes(x = log2(baseMean), y = log2FoldChange, colour = significant)
   ) +
-  theme_bw()
+    geom_point() +
+    scale_colour_hue(c = 45, l = 80, na.value = "#cccccc", drop = FALSE) +
+    geom_point(
+      data = res_batch3_day2_lfc_labelled,
+      color = "red", size = 3
+    ) +
+    new_scale_color() +
+    scale_colour_hue(
+      c = 100, l = 65, na.value = "#cccccc",
+      drop = FALSE
+    ) +
+    ggrepel::geom_label_repel(
+      data = res_batch3_day2_lfc_labelled,
+      aes(label = gene, segment.colour = "black", colour = significant),
+      min.segment.length = 0,
+      max.overlaps = 30,
+      size = 3,
+      show.legend = FALSE
+    ) +
+    ggtitle(paste0("Batch 3 | Day 2 | ", category)) +
+    theme_bw()
+  plot_list[[category]] <- p
+  print(p)
+}
 ```
 
 ### Counts of exogenous rna
 
 Plot of counts for a single gene (with lowest adjusted p-value)
-```{r fig.height=25, fig.width=10}
+```{r fig.height=30, fig.width=20}
 #| label: batch-3-day-2-exogenous-counts
-#| fig-height: 25
-#| fig-width: 10
+#| fig-height: 30
+#| fig-width: 20
+
+res_batch3_day2_lfc_labelled <- res_batch3_day2_lfc_df %>%
+  dplyr::filter(gene %in% exogenous_rna_names) %>%
+  na.omit() %>%
+  arrange(gene)
+
 plot_list <- list()
 for (gene in res_batch3_day2_lfc_labelled$gene) {
   gene_rna_type <- str_split(gene, ":")[[1]][1]
@@ -530,5 +613,5 @@ for (gene in res_batch3_day2_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list, ncol = 3)
+cowplot::plot_grid(plotlist = plot_list, ncol = 5)
 ```
