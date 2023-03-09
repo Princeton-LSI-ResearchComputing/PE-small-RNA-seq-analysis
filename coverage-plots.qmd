@@ -7,6 +7,7 @@ format:
     code-fold: true
     df-print: paged
     embed-resources: true
+    fig-format: svg
 editor: source
 params:
   normalization: "human_small_rna"
