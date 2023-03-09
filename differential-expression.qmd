@@ -238,8 +238,13 @@ ggplot(
     data = res_batch2_day1_lfc_labelled,
     aes(color = rna_type), size = 3
   ) +
+  geom_hline(yintercept = 0, color = "black", lty = "dashed") +
   ggtitle("Batch 2 | Day 1") +
-  theme_bw()
+  theme_bw() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
 ```
 
 ### Counts of exogenous rna
@@ -372,8 +377,13 @@ ggplot(
     data = res_batch2_day2_lfc_labelled,
     aes(color = rna_type), size = 3
   ) +
+  geom_hline(yintercept = 0, color = "black", lty = "dashed") +
   ggtitle("Batch 2 | Day 2") +
-  theme_bw()
+  theme_bw() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
 ```
 
 ### Counts of exogenous rna
@@ -513,8 +523,13 @@ for (category in categories) {
       data = res_batch3_day1_lfc_labelled,
       aes(color = rna_type), size = 3
     ) +
+    geom_hline(yintercept = 0, color = "black", lty = "dashed") +
     ggtitle(paste0("Batch 3 | Day 1 | ", category)) +
-    theme_bw()
+    theme_bw() +
+    theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    )
   plot_list[[category]] <- p
   print(p)
 }
@@ -668,8 +683,13 @@ for (category in categories) {
       data = res_batch3_day2_lfc_labelled,
       aes(color = rna_type), size = 3
     ) +
+    geom_hline(yintercept = 0, color = "black", lty = "dashed") +
     ggtitle(paste0("Batch 3 | Day 2 | ", category)) +
-    theme_bw()
+    theme_bw() +
+    theme(
+      panel.grid.major = element_blank(),
+      panel.grid.minor = element_blank()
+    )
   plot_list[[category]] <- p
   print(p)
 }
