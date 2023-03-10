@@ -55,6 +55,40 @@ register(MulticoreParam(4))
 
 {{< include _exogenous-alignments.qmd >}}
 
+## Export exogenous RNA counts
+```{r}
+#| label: export-exogenous-rna-counts
+# Split sample name into parts
+exogenous_counts_temp <- exogenous_rna_count_data %>%
+  mutate(sample_unit = str_replace_all(
+    sample_unit,
+    "_sorted|_pegRNA|_epegRNA",
+    ""
+  )) %>%
+  tidyr::separate(sample_unit, "_", into = c(
+    "background",
+    "mixture",
+    "day",
+    "replicate"
+  ))
+
+# Calculate totals
+exogenous_counts_export <- rbind(
+  exogenous_counts_temp,
+  exogenous_counts_temp %>%
+    group_by(background, mixture, day, replicate, sequence_name) %>%
+    summarize(count = sum(count), .groups = "keep") %>%
+    mutate(category = "total", .before = count)
+) %>%
+  dplyr::arrange(background, mixture, day, replicate, sequence_name, category)
+
+# Export
+write_tsv(exogenous_counts_export,
+  file = "exexogenous_rna_count_data.tsv"
+)
+exogenous_counts_export
+```
+
 # Human small RNA gene counts
 
 {{< include _human-small-rna-counts.qmd >}}
