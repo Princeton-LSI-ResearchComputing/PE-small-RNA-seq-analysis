@@ -38,6 +38,7 @@ library("GenomicAlignments")
 library("plyranges")
 library("rlang")
 library("ggplot2")
+library("RColorBrewer")
 ```
 
 # Read sample data
@@ -196,11 +197,10 @@ for (rna_species in rna_mixes %>%
     categories_to_plot <- c("active_cis", "active_trans")
     normalizations_to_plot <- c("human_small_rna", "exogenous_rna_category")
 
-    normalization_labs <- c(
-      "per million human small rna",
-      "as fraction of reads in category"
-    )
-    names(normalization_labs) <- normalizations_to_plot
+    normalization_labs <- as_labeller(c(
+      human_small_rna = "per million human small rna",
+      exogenous_rna_category = "as fraction of reads in category"
+    ))
 
     annotations <- read_tsv(
       sprintf("data/references/exogenous-rna/%s.bed", rna_species),
@@ -212,36 +212,26 @@ for (rna_species in rna_mixes %>%
     # Lines at start of annotation
     annotation_lines <- annotations %>%
       filter(name %in% c("protospacer", "PBS")) %>%
-      mutate(x = chromStart)
+      mutate(x = chromStart - 0.5)
+    # Edit line "on the base"
+    annotation_lines <- rbind(
+      annotation_lines,
+      annotations %>%
+        filter(name %in% c("edit")) %>%
+        mutate(x = chromStart)
+    )
     # Lines at end of annotation
     annotation_lines <- rbind(
       annotation_lines,
       annotations %>%
         filter(name %in% c("sgRNA_end", "pegRNA_end", "terminator_end")) %>%
-        mutate(x = chromEnd)
+        mutate(x = chromEnd + 0.5)
     )
-    # Line 1 bp after start of annotation
-    annotation_lines <- rbind(
-      annotation_lines,
-      annotations %>%
-        filter(name == "nick") %>%
-        mutate(x = chromStart + 1)
-    )
-
-    # Rectangles
-    annotation_rectangles <- annotations %>%
-      filter(name == "edit") %>%
-      mutate(xmin = chromStart, xmax = chromEnd)
 
     # Labels
-    annotation_labels <- rbind(
-      annotation_rectangles %>%
-        mutate(x = chromStart) %>%
-        select(name, x),
-      annotation_lines %>%
-        select(name, x)
-    ) %>%
-      mutate(normalization = "human_small_rna") %>%
+    annotation_labels <- annotation_lines %>%
+      select(name, x) %>%
+      mutate(normalization = "exogenous_rna_category") %>%
       mutate(
         label = case_when(
           name == "protospacer" ~ "pegRNA start",
@@ -250,7 +240,6 @@ for (rna_species in rna_mixes %>%
           name == "sgRNA_end" ~ "sgRNA end",
           name == "pegRNA_end" ~ "pegRNA end",
           name == "terminator_end" ~ "Terminator end",
-          name == "nick" ~ "nick"
         ),
         label_just = case_when(
           name == "protospacer" ~ 0,
@@ -259,7 +248,6 @@ for (rna_species in rna_mixes %>%
           name == "sgRNA_end" ~ 1,
           name == "pegRNA_end" ~ 0,
           name == "terminator_end" ~ 0,
-          name == "nick" ~ 1
         ),
         nudge_x = case_when(label_just == 0 ~ 0.5, label_just == 1 ~ -0.5)
       )
@@ -276,6 +264,9 @@ for (rna_species in rna_mixes %>%
 
     ylims_human <- range(plot_data %>%
       filter(normalization == "human_small_rna") %>%
+      pull(coverage))
+    ylims_exogenous <- range(plot_data %>%
+      filter(normalization == "exogenous_rna_category") %>%
       pull(coverage))
 
     p <- ggplot(
@@ -302,9 +293,14 @@ for (rna_species in rna_mixes %>%
       ylab("Coverage (normalized)") +
       xlab("Position") +
       facet_wrap(
-        facets = ~normalization, scales = "free_y", ncol = 1,
+        facets = ~ factor(
+          normalization,
+          levels = c("human_small_rna", "exogenous_rna_category")
+        ),
+        scales = "free_y",
+        ncol = 1,
         strip.position = "left",
-        labeller = labeller(normalization = normalization_labs)
+        labeller = normalization_labs
       ) +
       ggtitle(paste(rna_species, "-", day)) +
       geom_vline(
@@ -317,7 +313,7 @@ for (rna_species in rna_mixes %>%
         data = annotation_labels,
         aes(
           x = x,
-          y = -diff(ylims_human) * 0.05,
+          y = -diff(ylims_exogenous) * 0.05,
           label = label,
           hjust = label_just
         ),
@@ -325,17 +321,6 @@ for (rna_species in rna_mixes %>%
         show.legend = FALSE,
         color = "black",
         size = 2.5,
-        inherit.aes = FALSE
-      ) +
-      geom_rect(
-        data = annotation_rectangles,
-        xmin = annotation_rectangles$xmin,
-        xmax = annotation_rectangles$xmax,
-        ymin = min(extendrange(ylims_human, f = 0.10)),
-        ymax = max(extendrange(ylims_human, f = 0.10)),
-        fill = "#8da0cb7f",
-        color = "#8da0cbFF",
-        lwd = 0.5,
         inherit.aes = FALSE
       ) +
       theme_bw() +
