@@ -100,19 +100,6 @@ exogenous_counts_export
 ```{r}
 #| label: combine-human-exogenous-counts
 
-# Combine inactive categories into one "other" category
-exogenous_counts_all <- exogenous_rna_count_data
-exogenous_rna_count_data <- exogenous_rna_count_data %>%
-  mutate(category = case_when(
-    category %in% c(
-      "inactive_cryptic_termination",
-      "inactive_other"
-    ) ~ "other",
-    TRUE ~ category
-  )) %>%
-  group_by(sample_unit, sequence_name, category) %>%
-  summarize(count = sum(count), .groups = "keep")
-
 # Reformat exogenous counts
 exogenous_gene_counts_category <- exogenous_rna_count_data %>%
   tidyr::unite(gene, c(sequence_name, category), sep = ":") %>%
@@ -207,6 +194,10 @@ plotPCA(vsd, intgroup = c("cell_line", "exogenous_rna", "day"))
 
 # Differential Expression
 
+## Plot aesthetics
+
+{{< include _plot-aesthetics.qmd >}}
+
 ## Batch 2 - Day 1
 
 Select subset of samples then calculate the log2 fold change:
@@ -283,29 +274,32 @@ res_batch2_day1_lfc_labelled <- res_batch2_day1_lfc_df %>%
   ) %>%
   arrange(gene)
 
-# Color palette
-human_gene_colors <- c("#a9a9a9", "#dddddd")
-exogenous_gene_colors <- c("#d95f02", "#7570b3", "#1b9e77")
-na_color <- "#777777"
-
 p <- ggplot(
   res_batch2_day1_lfc_df,
   aes(x = log2(baseMean), y = log2FoldChange, colour = significant)
 ) +
   scale_color_manual(
-    name = "Significant (p<= 0.05)",
+    name = "p-value",
+    labels = sig_labels,
     values = human_gene_colors,
     na.value = na_color,
     drop = FALSE
   ) +
+  scale_fill_manual(
+    values = human_gene_colors,
+    na.value = na_color,
+    drop = FALSE
+  ) +
+  guides(colour = guide_legend(override.aes = list(size = 3))) +
   geom_point() +
   ggrepel::geom_label_repel(
     data = res_batch2_day1_lfc_labelled,
     aes(
       label = rna_species,
       segment.colour = "black",
-      color = significant
+      fill = significant
     ),
+    color = "white",
     min.segment.length = 0,
     max.overlaps = 30,
     size = 3,
@@ -320,6 +314,7 @@ p <- ggplot(
   new_scale_color() +
   scale_color_manual(
     name = "Exogenous RNA Category",
+    labels = category_labels,
     values = exogenous_gene_colors,
     na.value = na_color,
     drop = FALSE
@@ -327,7 +322,7 @@ p <- ggplot(
   geom_point(
     data = res_batch2_day1_lfc_labelled,
     aes(color = category),
-    size = 6
+    size = 4
   ) +
   geom_hline(yintercept = 0, color = "black", lty = "dashed") +
   ggtitle("Batch 2 | Day 1") +
@@ -342,16 +337,16 @@ ggsave("diffexp-batch2-day1.svg", p)
 # Remove labels
 p_nolabels <- p
 p_nolabels$layers <- p$layers[-2]
-ggsave("diffexp-batch2-day1-nolabels.png", dpi = 300)
+ggsave("diffexp-batch2-day1-nolabels.png", p_nolabels, dpi = 300)
 ```
 
 ### Counts of exogenous rna
 
 Plot of counts for a single gene (with lowest adjusted p-value)
-```{r fig.height=8, fig.width=12}
+```{r fig.height=8, fig.width=20}
 #| label: batch-2-day-1-exogenous-counts
 #| fig-height: 8
-#| fig-width: 12
+#| fig-width: 20
 
 plot_list <- list()
 for (gene in res_batch2_day1_lfc_labelled$gene) {
@@ -371,7 +366,7 @@ for (gene in res_batch2_day1_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list, ncol = 3)
+cowplot::plot_grid(plotlist = plot_list, ncol = 4)
 ```
 
 
@@ -456,15 +451,27 @@ p <- ggplot(
   aes(x = log2(baseMean), y = log2FoldChange, color = significant)
 ) +
   scale_color_manual(
-    name = "Significant (p<= 0.05)",
+    name = "p-value",
+    labels = sig_labels,
     values = human_gene_colors,
     na.value = na_color,
     drop = FALSE
   ) +
+  scale_fill_manual(
+    values = human_gene_colors,
+    na.value = na_color,
+    drop = FALSE
+  ) +
+  guides(colour = guide_legend(override.aes = list(size = 3))) +
   geom_point() +
   ggrepel::geom_label_repel(
     data = res_batch2_day2_lfc_labelled,
-    aes(label = rna_species, segment.colour = "black", color = significant),
+    aes(
+      label = rna_species,
+      segment.colour = "black",
+      fill = significant
+    ),
+    color = "white",
     min.segment.length = 0,
     max.overlaps = 30,
     size = 3,
@@ -479,6 +486,7 @@ p <- ggplot(
   new_scale_color() +
   scale_color_manual(
     name = "Exogenous RNA Category",
+    label = category_labels,
     values = exogenous_gene_colors,
     na.value = na_color,
     drop = FALSE
@@ -486,7 +494,7 @@ p <- ggplot(
   geom_point(
     data = res_batch2_day2_lfc_labelled,
     aes(color = category),
-    size = 6
+    size = 4
   ) +
   geom_hline(yintercept = 0, color = "black", lty = "dashed") +
   ggtitle("Batch 2 | Day 2") +
@@ -501,16 +509,16 @@ ggsave("diffexp-batch2-day2.svg", p)
 # Remove labels
 p_nolabels <- p
 p_nolabels$layers <- p$layers[-2]
-ggsave("diffexp-batch2-day2-nolabels.png", dpi = 300)
+ggsave("diffexp-batch2-day2-nolabels.png", p_nolabels, dpi = 300)
 ```
 
 ### Counts of exogenous rna
 
 Plot of counts for a single gene (with lowest adjusted p-value)
-```{r fig.height=8, fig.width=12}
+```{r fig.height=8, fig.width=20}
 #| label: batch-2-day-2-exogenous-counts
 #| fig-height: 8
-#| fig-width: 12
+#| fig-width: 20
 
 plot_list <- list()
 for (gene in res_batch2_day2_lfc_labelled$gene) {
@@ -530,7 +538,7 @@ for (gene in res_batch2_day2_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list, ncol = 3)
+cowplot::plot_grid(plotlist = plot_list, ncol = 4)
 ```
 
 
@@ -617,15 +625,27 @@ p <- ggplot(
   aes(x = log2(baseMean), y = log2FoldChange, colour = significant)
 ) +
   scale_color_manual(
-    name = "Significant (p<= 0.05)",
+    name = "p-value",
+    labels = sig_labels,
     values = human_gene_colors,
     na.value = na_color,
     drop = FALSE
   ) +
+  scale_fill_manual(
+    values = human_gene_colors,
+    na.value = na_color,
+    drop = FALSE
+  ) +
+  guides(colour = guide_legend(override.aes = list(size = 3))) +
   geom_point() +
   ggrepel::geom_label_repel(
     data = res_batch3_day1_lfc_labelled,
-    aes(label = rna_species, segment.colour = "black", colour = significant),
+    aes(
+      label = rna_species,
+      segment.colour = "black",
+      fill = significant
+    ),
+    color = "white",
     min.segment.length = 0,
     max.overlaps = Inf,
     size = 3,
@@ -640,6 +660,7 @@ p <- ggplot(
   new_scale_color() +
   scale_color_manual(
     name = "Exogenous RNA Category",
+    labels = category_labels,
     values = exogenous_gene_colors,
     na.value = na_color,
     drop = FALSE
@@ -647,7 +668,7 @@ p <- ggplot(
   geom_point(
     data = res_batch3_day1_lfc_labelled,
     aes(color = category),
-    size = 6
+    size = 4
   ) +
   geom_hline(yintercept = 0, color = "black", lty = "dashed") +
   ggtitle("Batch 3 | Day 1") +
@@ -662,16 +683,16 @@ ggsave("diffexp-batch3-day1.svg", p)
 # Remove labels
 p_nolabels <- p
 p_nolabels$layers <- p$layers[-2]
-ggsave("diffexp-batch3-day1-nolabels.png", dpi = 300)
+ggsave("diffexp-batch3-day1-nolabels.png", p_nolabels, dpi = 300)
 ```
 
 ### Counts of exogenous rna
 
 Plot of counts for a single gene (with lowest adjusted p-value)
-```{r fig.height=30, fig.width=12}
+```{r fig.height=30, fig.width=20}
 #| label: batch-3-day-1-exogenous-counts
 #| fig-height: 30
-#| fig-width: 12
+#| fig-width: 20
 
 res_batch3_day1_lfc_labelled <- res_batch3_day1_lfc_df %>%
   dplyr::filter(gene %in% exogenous_rna_names) %>%
@@ -701,7 +722,7 @@ for (gene in res_batch3_day1_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list, ncol = 3)
+cowplot::plot_grid(plotlist = plot_list, ncol = 4)
 ```
 
 
@@ -789,15 +810,27 @@ p <- ggplot(
   aes(x = log2(baseMean), y = log2FoldChange, colour = significant)
 ) +
   scale_color_manual(
-    name = "Significant (p<= 0.05)",
+    name = "p-value",
+    labels = sig_labels,
     values = human_gene_colors,
     na.value = na_color,
     drop = FALSE
   ) +
+  scale_fill_manual(
+    values = human_gene_colors,
+    na.value = na_color,
+    drop = FALSE
+  ) +
+  guides(colour = guide_legend(override.aes = list(size = 3))) +
   geom_point() +
   ggrepel::geom_label_repel(
     data = res_batch3_day2_lfc_labelled,
-    aes(label = rna_species, segment.colour = "black", colour = significant),
+    aes(
+      label = rna_species,
+      segment.colour = "black",
+      fill = significant
+    ),
+    color = "white",
     min.segment.length = 0,
     max.overlaps = Inf,
     size = 3,
@@ -812,6 +845,7 @@ p <- ggplot(
   new_scale_color() +
   scale_color_manual(
     name = "Exogenous RNA Category",
+    labels = category_labels,
     values = exogenous_gene_colors,
     na.value = na_color,
     drop = FALSE
@@ -819,7 +853,7 @@ p <- ggplot(
   geom_point(
     data = res_batch3_day2_lfc_labelled,
     aes(color = category),
-    size = 6
+    size = 4
   ) +
   geom_hline(yintercept = 0, color = "black", lty = "dashed") +
   ggtitle("Batch 3 | Day 2") +
@@ -834,7 +868,7 @@ ggsave("diffexp-batch3-day2.svg", p)
 # Remove labels
 p_nolabels <- p
 p_nolabels$layers <- p$layers[-2]
-ggsave("diffexp-batch3-day2-nolabels.png", dpi = 300)
+ggsave("diffexp-batch3-day2-nolabels.png", p_nolabels, dpi = 300)
 ```
 
 ### Counts of exogenous rna
@@ -843,7 +877,7 @@ Plot of counts for a single gene (with lowest adjusted p-value)
 ```{r fig.height=30, fig.width=20}
 #| label: batch-3-day-2-exogenous-counts
 #| fig-height: 30
-#| fig-width: 12
+#| fig-width: 20
 
 res_batch3_day2_lfc_labelled <- res_batch3_day2_lfc_df %>%
   dplyr::filter(gene %in% exogenous_rna_names) %>%
@@ -873,5 +907,5 @@ for (gene in res_batch3_day2_lfc_labelled$gene) {
     ggtitle(gene)
   plot_list[[gene]] <- p
 }
-cowplot::plot_grid(plotlist = plot_list, ncol = 3)
+cowplot::plot_grid(plotlist = plot_list, ncol = 4)
 ```

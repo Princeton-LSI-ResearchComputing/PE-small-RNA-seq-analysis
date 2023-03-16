@@ -1,0 +1,23 @@
+```{r}
+#| label: plot-aesthetics
+
+# Color palette
+human_gene_colors <- c("#777777", "#a9a9a9")
+exogenous_gene_colors <- c("#d95f02", "#7570b3", "#1b9e77", "#E7298A")
+na_color <- "#dddddd"
+
+# Legend text
+category_labels <- list(
+  "active_cis" = "Active (cis)",
+  "active_trans" = "Active (trans)",
+  "inactive_cryptic_termination" = "Cryptic Termination",
+  "inactive_other" = "Other"
+)
+
+# Significance text
+sig_labels <- list(
+  "TRUE" = "<= 0.05",
+  "FALSE" = "> 0.05",
+  "NA" = "na"
+)
+```
