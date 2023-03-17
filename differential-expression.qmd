@@ -273,7 +273,7 @@ res_batch2_day1_lfc_labelled <- res_batch2_day1_lfc_df %>%
     sep = ":",
     remove = FALSE
   ) %>%
-  mutate(category = factor(category, labels = category_level_order)) %>%
+  mutate(category = factor(category, levels = category_level_order)) %>%
   arrange(gene)
 
 p <- ggplot(
@@ -327,7 +327,7 @@ p <- ggplot(
     aes(color = category),
     size = 4
   ) +
-  xlab("mean of normalized counts for all samples") +
+  xlab("log2 mean of normalized counts for all samples") +
   ylab("log2 fold change: cell line P1E10 vs Parental") +
   ggtitle("Batch 2 | Day 1") +
   theme_bw() +
@@ -451,7 +451,7 @@ res_batch2_day2_lfc_labelled <- res_batch2_day2_lfc_df %>%
     sep = ":",
     remove = FALSE
   ) %>%
-  mutate(category = factor(category, labels = category_level_order)) %>%
+  mutate(category = factor(category, levels = category_level_order)) %>%
   arrange(gene)
 
 p <- ggplot(
@@ -505,7 +505,7 @@ p <- ggplot(
     aes(color = category),
     size = 4
   ) +
-  xlab("mean of normalized counts for all samples") +
+  xlab("log2 mean of normalized counts for all samples") +
   ylab("log2 fold change: cell line P1E10 vs Parental") +
   ggtitle("Batch 2 | Day 2") +
   theme_bw() +
@@ -630,7 +630,7 @@ res_batch3_day1_lfc_labelled <- res_batch3_day1_lfc_df %>%
     sep = ":",
     remove = FALSE
   ) %>%
-  mutate(category = factor(category, labels = category_level_order)) %>%
+  mutate(category = factor(category, levels = category_level_order)) %>%
   arrange(gene)
 
 p <- ggplot(
@@ -684,7 +684,7 @@ p <- ggplot(
     aes(color = category),
     size = 4
   ) +
-  xlab("mean of normalized counts for all samples") +
+  xlab("log2 mean of normalized counts for all samples") +
   ylab("log2 fold change: cell line P1E10 vs Parental") +
   ggtitle("Batch 3 | Day 1") +
   theme_bw() +
@@ -821,7 +821,7 @@ res_batch3_day2_lfc_labelled <- res_batch3_day2_lfc_df %>%
     sep = ":",
     remove = FALSE
   ) %>%
-  mutate(category = factor(category, labels = category_level_order)) %>%
+  mutate(category = factor(category, levels = category_level_order)) %>%
   arrange(gene)
 
 p <- ggplot(
@@ -875,7 +875,7 @@ p <- ggplot(
     aes(color = category),
     size = 4
   ) +
-  xlab("mean of normalized counts for all samples") +
+  xlab("log2 mean of normalized counts for all samples") +
   ylab("log2 fold change: cell line P1E10 vs Parental") +
   ggtitle("Batch 3 | Day 2") +
   theme_bw() +
