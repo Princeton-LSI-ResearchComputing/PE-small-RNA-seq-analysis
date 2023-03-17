@@ -34,6 +34,7 @@ library("dplyr")
 library("Rsamtools")
 library("tidyr")
 library("stringr")
+library("forcats")
 library("GenomicAlignments")
 library("plyranges")
 library("rlang")
@@ -57,7 +58,7 @@ library("RColorBrewer")
 
 ```{r}
 #| label: sum-human-small-rna
-human_rna_totals <- gene_counts %>%
+human_rna_totals <- human_gene_counts %>%
   pivot_longer(
     cols = -"gene",
     names_to = "sample_unit",
@@ -71,18 +72,13 @@ write_tsv(human_rna_totals, "human_rna_count_totals.tsv")
 human_rna_totals
 ```
 
-
-```{r}
-#| label: get-normalization-text
-normalization_text_options <- list(
-  "human_small_rna" = "Total Human Small RNA",
-  "exogenous_rna" = "Total Exogeouns RNA",
-  "exogenous_rna_category" = "Exegenous RNA Activity Category"
-)
-```
-
 # Coverage plots
 
+## Plot aesthetics
+
+{{< include _plot-aesthetics.qmd >}}
+
+## Normalization function
 ```{r}
 #| label: get-normalization-factor
 
@@ -128,6 +124,7 @@ normalization_factor <- function(sample_unit,
 #| fig-width: 10
 
 # Loop over exogenous rna species
+rna_species_plots <- list()
 for (rna_species in rna_mixes %>%
   pull(rna_species) %>%
   unique()) {
@@ -202,11 +199,20 @@ for (rna_species in rna_mixes %>%
       exogenous_rna_category = "as fraction of reads in category"
     ))
 
+
     annotations <- read_tsv(
       sprintf("data/references/exogenous-rna/%s.bed", rna_species),
       col_names = c("chrom", "chromStart", "chromEnd", "name"),
       col_types = "ciic"
     )
+    pegrna_offset <- annotations %>%
+      filter(name == "protospacer") %>%
+      pull(chromStart)
+    annotations <- annotations %>%
+      dplyr::mutate(
+        chromStart = chromStart - pegrna_offset,
+        chromEnd = chromEnd - pegrna_offset
+      )
 
     # Locations for vertical lines
     # Lines at start of annotation
@@ -260,7 +266,12 @@ for (rna_species in rna_mixes %>%
       ) %>%
       filter(category %in% categories_to_plot) %>%
       mutate(category = droplevels(category)) %>%
-      filter(normalization %in% normalizations_to_plot)
+      filter(normalization %in% normalizations_to_plot) %>%
+      mutate(position = position - pegrna_offset) %>%
+      mutate(category = suppressWarnings(
+        fct_relevel(category, category_level_order)
+      )) %>%
+      mutate(cell_line = fct_relevel(cell_line, cell_line_order))
 
     ylims_human <- range(plot_data %>%
       filter(normalization == "human_small_rna") %>%
@@ -275,16 +286,20 @@ for (rna_species in rna_mixes %>%
         x = position,
         y = coverage,
         group = interaction(sample_unit, category),
-        color = cell_line,
-        linetype = category
+        color = category,
+        alpha = cell_line
       )
     ) +
       geom_line(lwd = 1) +
-      scale_colour_brewer(palette = "Set2") +
-      labs(color = "Cell Line") +
-      scale_linetype_discrete(
+      scale_color_manual(
         name = "Exogenous RNA Category",
-        labels = c("Active in cis", "Active in trans")
+        values = exogenous_gene_colors[1:2],
+        labels = category_labels
+      ) +
+      scale_alpha_manual(
+        name = "Cell Line",
+        labels = cell_line_order,
+        values = c(1, 0.3)
       ) +
       guides(
         color = guide_legend(order = 1),
@@ -305,7 +320,7 @@ for (rna_species in rna_mixes %>%
       ggtitle(paste(rna_species, "-", day)) +
       geom_vline(
         xintercept = annotation_lines$x,
-        color = "#8da0cb",
+        color = "#777777",
         alpha = 1,
         lwd = 0.5
       ) +
@@ -323,13 +338,15 @@ for (rna_species in rna_mixes %>%
         size = 2.5,
         inherit.aes = FALSE
       ) +
+      scale_x_continuous(limits = c(-15, max(rna_mixes$end) - 5)) +
       theme_bw() +
       theme(
         strip.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
         strip.placement = "outside",
         legend.position = "top"
       )
-
     print(p)
   }
 }
