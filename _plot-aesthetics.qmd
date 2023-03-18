@@ -4,10 +4,26 @@
 # Color palette
 human_gene_colors <- c("#777777", "#a9a9a9")
 exogenous_gene_colors <- c(
-  "active_cis" = "#d95f02", 
+  "active_cis" = "#d95f02",
   "active_trans" = "#7570b3",
-  "inactive_cryptic_termination" = "#1b9e77" #,
+  "inactive_cryptic_termination" = "#1b9e77" # ,
   # "inactive_other" = "#E7298A"
+)
+cell_line_category_colors <- c(
+  "Parental_active_cis" = "#d95f02",
+  "P1E10_active_cis" = "#e39746",
+  "Parental_active_trans" = "#7570b3",
+  "P1E10_active_trans" = "#ac99c9",
+  "Parental_other" = "gray",
+  "P1E10_other" = "lightgray"
+)
+cell_line_category_linetypes <- c(
+  "Parental_active_cis" = "solid",
+  "P1E10_active_cis" = "solid",
+  "Parental_active_trans" = "solid",
+  "P1E10_active_trans" = "solid",
+  "P1E10_other" = "solid",
+  "Parental_other" = "solid"
 )
 na_color <- "#dddddd"
 
@@ -21,14 +37,31 @@ category_level_order <- c(
 category_labels <- list(
   "active_cis" = "Active (cis)",
   "active_trans" = "Active (trans)",
-  "inactive_cryptic_termination" = "Cryptic Termination"# ,
+  "inactive_cryptic_termination" = "Cryptic Termination" # ,
   # "inactive_other" = "Other"
 )
-
+cell_line_category_labels <- c(
+  "P1E10_other" = "SSB-ko4, other",
+  "P1E10_active_trans" = "SSB-ko4, bin 2",
+  "P1E10_active_cis" = "SSB-ko4, bin 1",
+  "Parental_other" = "parental, other",
+  "Parental_active_trans" = "parental, bin 2",
+  "Parental_active_cis" = "parental, bin 1"
+)
 # Cell lines
 cell_line_order <- c(
   "Parental",
   "P1E10"
+)
+
+# Cell line combined with category order
+cell_line_category_order <- c(
+  "P1E10_other",
+  "Parental_other",
+  "P1E10_active_trans",
+  "Parental_active_trans",
+  "P1E10_active_cis",
+  "Parental_active_cis"
 )
 
 # Significance text
