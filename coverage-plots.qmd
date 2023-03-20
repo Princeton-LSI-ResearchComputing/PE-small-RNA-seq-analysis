@@ -15,11 +15,9 @@ params:
 
 # Load libraries
 
-This project uses [`renv`](https://rstudio.github.io/renv/articles/renv.html)
-to keep track of installed packages. Install `renv` if not installed and load
-dependencies with `renv::restore()`.
+This project uses `renv` to keep track of installed packages. Install `renv` if not installed and load dependencies with `renv::restore()`.
 
-```r
+``` r
 install.packages("renv")
 renv::restore()
 ```
@@ -78,6 +76,7 @@ human_rna_totals
 {{< include _plot-aesthetics.qmd >}}
 
 ## Normalization function
+
 ```{r}
 #| label: get-normalization-factor
 
@@ -121,6 +120,7 @@ normalization_factor <- function(sample_unit,
 ```
 
 # Coverage plots
+
 ```{r, fig.height=5, fig.width=10}
 #| label: coverage-plots
 #| fig-height: 5
@@ -199,11 +199,18 @@ for (rna_species in rna_mixes %>%
     }
 
     # Combine other categories
-    day_data <- day_data %>%
+    day_data_2 <- day_data %>%
       mutate(category = factor(
         x = category,
         levels = c("active_cis", "active_trans", "other")
-      ))
+      )) %>%
+      group_by(position, rna_species, sample_unit, cell_line, category) %>%
+      summarize(
+        coverage = sum(coverage),
+        human_small_rna = sum(human_small_rna),
+        exogenous_rna_category = sum(exogenous_rna_category),
+        .groups = "keep"
+      )
 
     categories_to_plot <- c("active_cis", "active_trans")
     if (params$plot_other) {
