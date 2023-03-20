@@ -14,3 +14,9 @@ quarto render coverage-plots.qmd \
     --to html \
     -P plot_other:TRUE \
     --output coverage-plots-with-other.html
+
+quarto render coverage-plots.qmd \
+    --to html \
+    -P plot_other:TRUE \
+    -P label_both_x_axis:TRUE \
+    --output coverage-plots-with-other-label-both-x-axis.html

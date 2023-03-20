@@ -11,6 +11,7 @@ format:
 editor: source
 params:
   plot_other: TRUE
+  label_both_x_axis: FALSE
 ---
 
 # Load libraries
@@ -126,8 +127,13 @@ normalization_factor <- function(sample_unit,
 #| fig-height: 5
 #| fig-width: 10
 
-# Loop over exogenous rna species
+# Label both facets x-axis
+facet_scales <- "free_y"
+if (params$label_both_x_axis) {
+  facet_scales <- "free"
+}
 
+# Loop over exogenous rna species
 for (rna_species in rna_mixes %>%
   pull(rna_species) %>%
   unique()) {
@@ -386,7 +392,7 @@ for (rna_species in rna_mixes %>%
           normalization,
           levels = c("human_small_rna", "exogenous_rna_category")
         ),
-        scales = "free_y",
+        scales = facet_scales,
         ncol = 1,
         strip.position = "left",
         labeller = normalization_labs
