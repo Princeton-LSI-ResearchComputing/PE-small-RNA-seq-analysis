@@ -17,6 +17,12 @@ quarto render coverage-plots.qmd \
 
 quarto render coverage-plots.qmd \
     --to html \
+    -P plot_other:FALSE \
+    -P label_both_x_axis:TRUE \
+    --output coverage-plots-without-other-label-both-x-axis.html
+
+quarto render coverage-plots.qmd \
+    --to html \
     -P plot_other:TRUE \
     -P label_both_x_axis:TRUE \
     --output coverage-plots-with-other-label-both-x-axis.html
