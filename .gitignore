@@ -59,3 +59,6 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Report output files (too large)
+*.html

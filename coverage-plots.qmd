@@ -7,19 +7,18 @@ format:
     code-fold: true
     df-print: paged
     embed-resources: true
+    fig-format: svg
 editor: source
 params:
-  normalization: "human_small_rna"
-  # human_small_rna, exogenous_rna, exogenous_rna_total
+  plot_other: TRUE
+  label_both_x_axis: FALSE
 ---
 
 # Load libraries
 
-This project uses [`renv`](https://rstudio.github.io/renv/articles/renv.html)
-to keep track of installed packages. Install `renv` if not installed and load
-dependencies with `renv::restore()`.
+This project uses `renv` to keep track of installed packages. Install `renv` if not installed and load dependencies with `renv::restore()`.
 
-```r
+``` r
 install.packages("renv")
 renv::restore()
 ```
@@ -33,10 +32,12 @@ library("dplyr")
 library("Rsamtools")
 library("tidyr")
 library("stringr")
+library("forcats")
 library("GenomicAlignments")
 library("plyranges")
-library("Gviz")
-options(ucscChromosomeNames = FALSE)
+library("rlang")
+library("ggplot2")
+library("RColorBrewer")
 ```
 
 # Read sample data
@@ -51,36 +52,46 @@ options(ucscChromosomeNames = FALSE)
 
 {{< include _human-small-rna-counts.qmd >}}
 
+## Human small RNA gene totals
+
 ```{r}
-#| label: get-normalization-text
-normalization_text_options <- list(
-  "human_small_rna" = "Total Human Small RNA",
-  "exogenous_rna" = "Total Exogeouns RNA",
-  "exogenous_rna_category" = "Exegenous RNA Activity Category"
-)
-normalization_text <- normalization_text_options[[params$normalization]]
+#| label: sum-human-small-rna
+human_rna_totals <- human_gene_counts %>%
+  pivot_longer(
+    cols = -"gene",
+    names_to = "sample_unit",
+    values_to = "count"
+  ) %>%
+  group_by(.data$sample_unit) %>%
+  summarize(count = sum(.data$count, na.rm = TRUE))
+
+### Export human RNA totals
+write_tsv(human_rna_totals, "human_rna_count_totals.tsv")
+human_rna_totals
 ```
 
-# Coverage plots: Normalized by `r normalization_text`
+# Plot setup
+
+## Plot aesthetics
+
+{{< include _plot-aesthetics.qmd >}}
+
+## Normalization function
 
 ```{r}
 #| label: get-normalization-factor
 
-normalization_factor <- function(sample_unit, rna_species, category) {
+normalization_factor <- function(sample_unit,
+                                 rna_species,
+                                 category,
+                                 normalization) {
   norm_factor <- NA
-  if (params$normalization == "human_small_rna") {
+  if (normalization == "human_small_rna") {
     # Total number of human small rna fragments
-    norm_factor <- gene_counts %>%
-      pivot_longer(
-        cols = -"gene",
-        names_to = "sample_unit",
-        values_to = "count"
-      ) %>%
-      group_by(.data$sample_unit) %>%
-      summarize(count = sum(.data$count, na.rm = TRUE)) %>%
+    norm_factor <- human_rna_totals %>%
       dplyr::filter(.data$sample_unit == !!sample_unit) %>%
       pull(count)
-  } else if (params$normalization == "exogenous_rna") {
+  } else if (normalization == "exogenous_rna") {
     # Total number of exogenous rna fragments
     norm_factor <- exogenous_rna_mapped_totals %>%
       dplyr::filter(
@@ -88,71 +99,52 @@ normalization_factor <- function(sample_unit, rna_species, category) {
         .data$sequence_name == !!rna_species
       ) %>%
       dplyr::pull("mapped_fragments")
-  } else if (params$normalization == "exogenous_rna_category") {
+  } else if (normalization == "exogenous_rna_category") {
+    if (category == "other") {
+      category <- "inactive"
+    }
     # Number of exogenous rna fragments in a given category
     norm_factor <- exogenous_rna_count_data %>%
       dplyr::filter(
         sample_unit == !!sample_unit,
         sequence_name == !!rna_species,
-        category == !!category
+        str_detect(category, !!category)
       ) %>%
-      pull(count)
+      pull(count) %>%
+      sum()
   } else {
     # Invalid normalization parameter
-    stop(sprintf("Invalid normalization parameter %s", params$normalization))
+    stop(sprintf("Invalid normalization parameter %s", normalization))
   }
   return(norm_factor)
 }
 ```
 
-```{r fig.height=8, fig.width=15}
-#| label: coverage-plots
-# Line colors and types for each series
-plot_styles <- list(
-  "Parental" = list( # nolint: object_name_linter
-    "active_cis" = list("color" = "#800000", "lty" = "solid"),
-    "active_trans" = list("color" = "#a84d3b", "lty" = "solid"),
-    "inactive_cryptic_terminiation" = list(
-      "color" = "#cb8777",
-      "lty" = "dotted"
-    ),
-    "inactive_other" = list("color" = "#e8c2b9", "lty" = "dotted")
-  ),
-  "P1E10" = list( # nolint: object_name_linter
-    "active_cis" = list("color" = "#003869", "lty" = "solid"),
-    "active_trans" = list("color" = "#4f648d", "lty" = "solid"),
-    "inactive_cryptic_terminiation" = list(
-      "color" = "#8995b2",
-      "lty" = "dotted"
-    ),
-    "inactive_other" = list("color" = "#c3c8d8", "lty" = "dotted")
-  )
-)
+# Coverage plots
 
-# Loop over species and plot coverage
+```{r, fig.height=5, fig.width=10}
+#| label: coverage-plots
+#| fig-height: 5
+#| fig-width: 10
+
+# Get data for all plots
+all_plot_data <- list()
+
+# Label both facets x-axis
+facet_scales <- "free_y"
+if (params$label_both_x_axis) {
+  facet_scales <- "free"
+}
+
+# Loop over exogenous rna species
 for (rna_species in rna_mixes %>%
   pull(rna_species) %>%
   unique()) {
-  gtrack <- GenomeAxisTrack()
-
-  # Read FASTA sequence and trim off description (after space)
-  dna <- readDNAStringSet(
-    sprintf("data/references/exogenous-rna/%s.fa", rna_species)
-  )
-  names(dna) <- names(dna) %>% str_remove(" +.*$")
-  sequence_track <- SequenceTrack(dna,
-    genome = rna_species,
-    chromosome = rna_species,
-    cex = 0.5
-  )
-
   # Get list of sample units we will plot
   sample_units_to_plot <- sample_units %>%
     dplyr::filter(sample_unit %in% names(rna_species_plot_data[[rna_species]]))
 
-  # Loop over days to create two overlay tracks
-  day_tracks <- list()
-  day_ylims <- list()
+  # Loop over days
   days_to_plot <- sample_units_to_plot %>%
     pull(day) %>%
     levels()
@@ -162,93 +154,594 @@ for (rna_species in rna_mixes %>%
       filter(day == {{ day }}) %>%
       pull(sample_unit)
 
+    day_data <- tibble(
+      rna_species = character(),
+      postion = numeric(),
+      coverage = numeric(),
+      sample_unit = character(),
+      cell_line = factor(),
+      category = factor(),
+      cov_human_norm = numeric(),
+      cov_cateory_norm = numeric()
+    )
+
     # Loop over sample units for this day
-    data_tracks <- list()
     for (sample_unit in sample_units_for_day) {
       cell_line <- sample_units_to_plot %>%
         filter(sample_unit == {{ sample_unit }}) %>%
         pull(cell_line) %>%
         toString()
+
       for (category in
         names(rna_species_plot_data[[rna_species]][[sample_unit]])) {
         # Calculate coverage
-        data <- as(
-          coverage(
-            rna_species_plot_data[[rna_species]][[sample_unit]][[category]]
-          ),
-          "GRanges"
+        data <- coverage(rna_species_plot_data[[rna_species]]
+        [[sample_unit]][[category]])[[rna_species]]
+
+        if (category %in% c("inactive_cryptic_termination", "inactive_other")) {
+          category <- "other"
+        }
+        # Organize into a tibble
+        category_data <- tibble(
+          rna_species = rna_species,
+          coverage = as.numeric(data),
+          sample_unit = sample_unit,
+          cell_line = as.factor(cell_line),
+          category = as.factor(category)
         ) %>%
-          # Remove non-matching sequences
-          keepSeqlevels(rna_species, pruning.mode = "coarse")
+          tibble::rowid_to_column("position")
 
         # Normalize scores
-        norm_factor <- normalization_factor(sample_unit, rna_species, category)
-        score(data) <- score(data) / norm_factor
-
-        # Create GViz data track
-        data_track <- DataTrack(data,
-          name = day,
-          type = "l",
-          col = plot_styles[[cell_line]][[category]]$color,
-          lty = plot_styles[[cell_line]][[{{ category }}]]$lty,
-          strand = "*"
+        norm_factor_human <- normalization_factor(
+          sample_unit, rna_species, category, "human_small_rna"
         )
-        data_tracks <- c(data_tracks, data_track)
+        norm_factor_category <- normalization_factor(
+          sample_unit, rna_species, category, "exogenous_rna_category"
+        )
+        category_data <- category_data %>%
+          mutate(human_small_rna = (coverage / norm_factor_human) * 1e6) %>%
+          mutate(exogenous_rna_category = coverage / norm_factor_category)
+
+        # Append to sample unit data
+        day_data <- rbind(day_data, category_data)
       }
-    } # end sample_unit loop
-    day_tracks[[day]] <- OverlayTrack(trackList = data_tracks, name = day)
-    day_ylims[[day]] <- ylims <- extendrange(range(lapply(data_tracks, values)))
-  } # end day loop
+    }
 
-  start <- rna_mixes %>%
-    filter(rna_species == {{ rna_species }}) %>%
-    pull(start) %>%
-    unique()
-  end <- rna_mixes %>%
-    filter(rna_species == {{ rna_species }}) %>%
-    pull(end) %>%
-    unique()
+    # Combine other categories
+    day_data_2 <- day_data %>%
+      mutate(category = factor(
+        x = category,
+        levels = c("active_cis", "active_trans", "other")
+      )) %>%
+      group_by(position, rna_species, sample_unit, cell_line, category) %>%
+      summarize(
+        coverage = sum(coverage),
+        human_small_rna = sum(human_small_rna),
+        exogenous_rna_category = sum(exogenous_rna_category),
+        .groups = "keep"
+      )
 
-  annotations <- read_tsv(
-    sprintf("data/references/exogenous-rna/%s.bed", rna_species),
-    col_names = c("chrom", "chromStart", "chromEnd", "name"),
-    col_types = "ciic"
-  )
+    categories_to_plot <- c("active_cis", "active_trans")
+    if (params$plot_other) {
+      categories_to_plot <- c(categories_to_plot, "other")
+    }
 
-  annotations_positions <- annotations %>%
-    dplyr::filter(name %in% c(
-      "cryptic_terminator_end", "sgRNA_end", "edit",
-      "nick", "pegRNA_end", "terminator_end"
+    normalizations_to_plot <- c("human_small_rna", "exogenous_rna_category")
+
+    normalization_labs <- as_labeller(c(
+      human_small_rna = "per million human small rna",
+      exogenous_rna_category = "as fraction of reads in category"
     ))
 
-  annotation_track <- AnnotationTrack(
-    chromosome = rna_species,
-    start = annotations$chromStart + 1,
-    end = annotations$chromEnd,
-    id = annotations$name,
-    fill = "#cfafc3",
-    featureAnnotation = "id",
-    fontcolor.feature = "#666666",
-    name = "(e)pegRNA features"
-  )
 
-  ht <- HighlightTrack(
-    trackList = c(sequence_track, annotation_track, day_tracks),
-    start = annotations_positions$chromStart + 1,
-    end = annotations_positions$chromEnd,
-    chromosome = rna_species,
-    col = "darkgrey",
-    fill = "#FFFFFF00",
-    lwd = 0.5
-  )
+    annotations <- read_tsv(
+      sprintf("data/references/exogenous-rna/%s.bed", rna_species),
+      col_names = c("chrom", "chromStart", "chromEnd", "name"),
+      col_types = "ciic"
+    )
+    pegrna_offset <- annotations %>%
+      filter(name == "protospacer") %>%
+      pull(chromStart)
+    annotations <- annotations %>%
+      dplyr::mutate(
+        chromStart = chromStart - pegrna_offset,
+        chromEnd = chromEnd - pegrna_offset
+      )
 
-  plotTracks(c(gtrack, ht),
-    chromosome = rna_species,
-    from = start,
-    to = end,
-    ylim = c(0, max(unlist(day_ylims))),
-    main = rna_species,
-    lwd = 3
-  )
+    # Genome annotations
+    # sgRNA highlight
+    sgrna_rect <- data.frame(
+      xmin = 0,
+      xmax = annotations %>%
+        filter(name == "sgRNA_end") %>%
+        pull(chromStart) + 0.5,
+      ymin = -Inf,
+      ymax = Inf
+    )
+    # Terminator hightlight
+    terminator_rect <- data.frame(
+      xmin = annotations %>%
+        filter(name == "pegRNA_end") %>%
+        pull(chromStart) - 0.5,
+      xmax = annotations %>%
+        filter(name == "terminator_end") %>%
+        pull(chromStart) + 0.5,
+      ymin = -Inf,
+      ymax = Inf
+    )
+
+    # Edit line
+    annotation_lines <- annotations %>%
+      filter(name %in% c("edit")) %>%
+      mutate(x = chromStart) %>%
+      mutate(linetype = "solid")
+
+    # PBS Start line
+    annotation_lines <- rbind(
+      annotation_lines,
+      annotations %>%
+        filter(name %in% c("PBS")) %>%
+        mutate(x = chromStart) %>%
+        mutate(linetype = "dotted")
+    )
+
+    # Labels
+    annotation_labels <- annotation_lines %>%
+      select(name, x) %>%
+      mutate(normalization = "exogenous_rna_category") %>%
+      mutate(
+        label = case_when(
+          name == "protospacer" ~ "pegRNA start",
+          name == "edit" ~ "edit",
+          name == "PBS" ~ "PBS start",
+          name == "sgRNA_end" ~ "sgRNA end",
+          name == "pegRNA_end" ~ "pegRNA end",
+          name == "terminator_end" ~ "Terminator end",
+        ),
+        label_just = case_when(
+          name == "protospacer" ~ 0,
+          name == "edit" ~ 1,
+          name == "PBS" ~ 0,
+          name == "sgRNA_end" ~ 1,
+          name == "pegRNA_end" ~ 0,
+          name == "terminator_end" ~ 0,
+        ),
+        nudge_x = case_when(label_just == 0 ~ 0.5, label_just == 1 ~ -0.5)
+      )
+
+    plot_data <- day_data %>%
+      tidyr::pivot_longer(
+        cols = c("coverage", "human_small_rna", "exogenous_rna_category"),
+        names_to = "normalization",
+        values_to = "coverage"
+      ) %>%
+      filter(category %in% categories_to_plot) %>%
+      mutate(category = droplevels(category)) %>%
+      filter(normalization %in% normalizations_to_plot) %>%
+      mutate(position = position - pegrna_offset) %>%
+      mutate(category = suppressWarnings(
+        fct_relevel(category, category_level_order)
+      )) %>%
+      mutate(cell_line = fct_relevel(cell_line, cell_line_order)) %>%
+      unite(cell_line_category, c(cell_line, category)) %>%
+      mutate(cell_line_category = factor(cell_line_category)) %>%
+      mutate(cell_line_category = suppressWarnings(
+        fct_relevel(cell_line_category, cell_line_category_order)
+      )) %>%
+      group_by(
+        position,
+        rna_species,
+        sample_unit,
+        cell_line_category,
+        normalization
+      ) %>%
+      summarize(coverage = sum(coverage), .groups = "keep")
+
+    ylims_human <- range(plot_data %>%
+      filter(normalization == "human_small_rna") %>%
+      pull(coverage))
+    ylims_exogenous <- range(plot_data %>%
+      filter(normalization == "exogenous_rna_category") %>%
+      pull(coverage))
+
+    p <- ggplot(
+      plot_data,
+      aes(
+        x = position,
+        y = coverage,
+        group = interaction(cell_line_category, sample_unit),
+        color = cell_line_category
+      )
+    ) +
+      geom_vline(
+        data = annotation_lines,
+        color = "#777777",
+        lwd = 0.6,
+        aes(
+          linetype = linetype,
+          xintercept = x
+        ),
+        show.legend = FALSE
+      ) +
+      geom_rect(
+        data = sgrna_rect,
+        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+        color = "lightgray",
+        alpha = 0.1,
+        inherit.aes = FALSE
+      ) +
+      geom_rect(
+        data = terminator_rect,
+        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+        color = "lightgray",
+        alpha = 0.1,
+        inherit.aes = FALSE
+      ) +
+      geom_line(lwd = 1) +
+      scale_color_manual(
+        name = "",
+        values = cell_line_category_colors[
+          seq_along(levels(plot_data$cell_line_category))
+        ],
+        labels = cell_line_category_labels
+      ) +
+      guides(
+        color = guide_legend(order = 1)
+      ) +
+      ylab("Coverage") +
+      xlab("Nucleotide position") +
+      facet_wrap(
+        facets = ~ factor(
+          normalization,
+          levels = c("human_small_rna", "exogenous_rna_category")
+        ),
+        scales = facet_scales,
+        ncol = 1,
+        strip.position = "left",
+        labeller = normalization_labs
+      ) +
+      ggtitle(paste(rna_species, "-", day)) +
+      geom_text(
+        data = tibble(
+          normalization = "human_small_rna",
+          name = c("sgRNA", "terminator"),
+          x = c(sgrna_rect$xmin, terminator_rect$xmin),
+          y = ylims_human[2] * 1.1
+        ),
+        aes(
+          x = x,
+          y = y,
+          label = name
+        ),
+        alpha = 0,
+        hjust = 0,
+        nudge_x = 1,
+        size = 5,
+        show.legend = FALSE,
+        inherit.aes = FALSE
+      ) +
+      scale_x_continuous(limits = c(-15, max(rna_mixes$end) - 5)) +
+      theme_bw() +
+      theme(
+        strip.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.placement = "outside",
+        legend.position = "top",
+        legend.title = element_blank()
+      )
+    print(p)
+    all_plot_data[[rna_species]][[day]] <- plot_data
+  }
 }
+```
+```{r, fig.height=5, fig.width=10}
+#| label: coverage-plots-facet-day
+#| fig-height: 5
+#| fig-width: 10
+
+# Label both facets x-axis
+facet_scales <- "free_y"
+if (params$label_both_x_axis) {
+  facet_scales <- "free"
+}
+
+# Loop over exogenous rna species
+for (rna_species in rna_mixes %>%
+  pull(rna_species) %>%
+  unique()) {
+  # Get list of sample units we will plot
+  sample_units_to_plot <- sample_units %>%
+    dplyr::filter(sample_unit %in% names(rna_species_plot_data[[rna_species]]))
+
+  # Loop over days
+  days_to_plot <- sample_units_to_plot %>%
+    pull(day) %>%
+    levels()
+  for (day in days_to_plot) {
+    # Get sample units for day
+    sample_units_for_day <- sample_units_to_plot %>%
+      filter(day == {{ day }}) %>%
+      pull(sample_unit)
+
+    day_data <- tibble(
+      rna_species = character(),
+      postion = numeric(),
+      coverage = numeric(),
+      sample_unit = character(),
+      cell_line = factor(),
+      category = factor(),
+      cov_human_norm = numeric(),
+      cov_cateory_norm = numeric()
+    )
+
+    # Loop over sample units for this day
+    for (sample_unit in sample_units_for_day) {
+      cell_line <- sample_units_to_plot %>%
+        filter(sample_unit == {{ sample_unit }}) %>%
+        pull(cell_line) %>%
+        toString()
+
+      for (category in
+        names(rna_species_plot_data[[rna_species]][[sample_unit]])) {
+        # Calculate coverage
+        data <- coverage(rna_species_plot_data[[rna_species]]
+        [[sample_unit]][[category]])[[rna_species]]
+
+        if (category %in% c("inactive_cryptic_termination", "inactive_other")) {
+          category <- "other"
+        }
+        # Organize into a tibble
+        category_data <- tibble(
+          rna_species = rna_species,
+          coverage = as.numeric(data),
+          sample_unit = sample_unit,
+          cell_line = as.factor(cell_line),
+          category = as.factor(category)
+        ) %>%
+          tibble::rowid_to_column("position")
+
+        # Normalize scores
+        norm_factor_human <- normalization_factor(
+          sample_unit, rna_species, category, "human_small_rna"
+        )
+        norm_factor_category <- normalization_factor(
+          sample_unit, rna_species, category, "exogenous_rna_category"
+        )
+        category_data <- category_data %>%
+          mutate(human_small_rna = (coverage / norm_factor_human) * 1e6) %>%
+          mutate(exogenous_rna_category = coverage / norm_factor_category)
+
+        # Append to sample unit data
+        day_data <- rbind(day_data, category_data)
+      }
+    }
+
+    # Combine other categories
+    day_data_2 <- day_data %>%
+      mutate(category = factor(
+        x = category,
+        levels = c("active_cis", "active_trans", "other")
+      )) %>%
+      group_by(position, rna_species, sample_unit, cell_line, category) %>%
+      summarize(
+        coverage = sum(coverage),
+        human_small_rna = sum(human_small_rna),
+        exogenous_rna_category = sum(exogenous_rna_category),
+        .groups = "keep"
+      )
+
+    categories_to_plot <- c("active_cis", "active_trans")
+    if (params$plot_other) {
+      categories_to_plot <- c(categories_to_plot, "other")
+    }
+
+    normalizations_to_plot <- c("human_small_rna", "exogenous_rna_category")
+
+    normalization_labs <- as_labeller(c(
+      human_small_rna = "per million human small rna",
+      exogenous_rna_category = "as fraction of reads in category"
+    ))
+
+
+    annotations <- read_tsv(
+      sprintf("data/references/exogenous-rna/%s.bed", rna_species),
+      col_names = c("chrom", "chromStart", "chromEnd", "name"),
+      col_types = "ciic"
+    )
+    pegrna_offset <- annotations %>%
+      filter(name == "protospacer") %>%
+      pull(chromStart)
+    annotations <- annotations %>%
+      dplyr::mutate(
+        chromStart = chromStart - pegrna_offset,
+        chromEnd = chromEnd - pegrna_offset
+      )
+
+    # Genome annotations
+    # sgRNA highlight
+    sgrna_rect <- data.frame(
+      xmin = 0,
+      xmax = annotations %>%
+        filter(name == "sgRNA_end") %>%
+        pull(chromStart) + 0.5,
+      ymin = -Inf,
+      ymax = Inf
+    )
+    # Terminator hightlight
+    terminator_rect <- data.frame(
+      xmin = annotations %>%
+        filter(name == "pegRNA_end") %>%
+        pull(chromStart) - 0.5,
+      xmax = annotations %>%
+        filter(name == "terminator_end") %>%
+        pull(chromStart) + 0.5,
+      ymin = -Inf,
+      ymax = Inf
+    )
+
+    # Edit line
+    annotation_lines <- annotations %>%
+      filter(name %in% c("edit")) %>%
+      mutate(x = chromStart) %>%
+      mutate(linetype = "solid")
+
+    # PBS Start line
+    annotation_lines <- rbind(
+      annotation_lines,
+      annotations %>%
+        filter(name %in% c("PBS")) %>%
+        mutate(x = chromStart) %>%
+        mutate(linetype = "dotted")
+    )
+
+    # Labels
+    annotation_labels <- annotation_lines %>%
+      select(name, x) %>%
+      mutate(normalization = "exogenous_rna_category") %>%
+      mutate(
+        label = case_when(
+          name == "protospacer" ~ "pegRNA start",
+          name == "edit" ~ "edit",
+          name == "PBS" ~ "PBS start",
+          name == "sgRNA_end" ~ "sgRNA end",
+          name == "pegRNA_end" ~ "pegRNA end",
+          name == "terminator_end" ~ "Terminator end",
+        ),
+        label_just = case_when(
+          name == "protospacer" ~ 0,
+          name == "edit" ~ 1,
+          name == "PBS" ~ 0,
+          name == "sgRNA_end" ~ 1,
+          name == "pegRNA_end" ~ 0,
+          name == "terminator_end" ~ 0,
+        ),
+        nudge_x = case_when(label_just == 0 ~ 0.5, label_just == 1 ~ -0.5)
+      )
+
+    plot_data <- day_data %>%
+      tidyr::pivot_longer(
+        cols = c("coverage", "human_small_rna", "exogenous_rna_category"),
+        names_to = "normalization",
+        values_to = "coverage"
+      ) %>%
+      filter(category %in% categories_to_plot) %>%
+      mutate(category = droplevels(category)) %>%
+      filter(normalization %in% normalizations_to_plot) %>%
+      mutate(position = position - pegrna_offset) %>%
+      mutate(category = suppressWarnings(
+        fct_relevel(category, category_level_order)
+      )) %>%
+      mutate(cell_line = fct_relevel(cell_line, cell_line_order)) %>%
+      unite(cell_line_category, c(cell_line, category)) %>%
+      mutate(cell_line_category = factor(cell_line_category)) %>%
+      mutate(cell_line_category = suppressWarnings(
+        fct_relevel(cell_line_category, cell_line_category_order)
+      )) %>%
+      group_by(
+        position,
+        rna_species,
+        sample_unit,
+        cell_line_category,
+        normalization
+      ) %>%
+      summarize(coverage = sum(coverage), .groups = "keep")
+
+    ylims_human <- range(plot_data %>%
+      filter(normalization == "human_small_rna") %>%
+      pull(coverage))
+    ylims_exogenous <- range(plot_data %>%
+      filter(normalization == "exogenous_rna_category") %>%
+      pull(coverage))
+
+    p <- ggplot(
+      plot_data,
+      aes(
+        x = position,
+        y = coverage,
+        group = interaction(cell_line_category, sample_unit),
+        color = cell_line_category
+      )
+    ) +
+      geom_vline(
+        data = annotation_lines,
+        color = "#777777",
+        lwd = 0.6,
+        aes(
+          linetype = linetype,
+          xintercept = x
+        ),
+        show.legend = FALSE
+      ) +
+      geom_rect(
+        data = sgrna_rect,
+        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+        color = "lightgray",
+        alpha = 0.1,
+        inherit.aes = FALSE
+      ) +
+      geom_rect(
+        data = terminator_rect,
+        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
+        color = "lightgray",
+        alpha = 0.1,
+        inherit.aes = FALSE
+      ) +
+      geom_line(lwd = 1) +
+      scale_color_manual(
+        name = "",
+        values = cell_line_category_colors[
+          seq_along(levels(plot_data$cell_line_category))
+        ],
+        labels = cell_line_category_labels
+      ) +
+      guides(
+        color = guide_legend(order = 1)
+      ) +
+      ylab("Coverage") +
+      xlab("Nucleotide position") +
+      facet_wrap(
+        facets = ~ factor(
+          normalization,
+          levels = c("human_small_rna", "exogenous_rna_category")
+        ),
+        scales = facet_scales,
+        ncol = 1,
+        strip.position = "left",
+        labeller = normalization_labs
+      ) +
+      ggtitle(paste(rna_species, "-", day)) +
+      geom_text(
+        data = tibble(
+          normalization = "human_small_rna",
+          name = c("sgRNA", "terminator"),
+          x = c(sgrna_rect$xmin, terminator_rect$xmin),
+          y = ylims_human[2] * 1.1
+        ),
+        aes(
+          x = x,
+          y = y,
+          label = name
+        ),
+        alpha = 0,
+        hjust = 0,
+        nudge_x = 1,
+        size = 5,
+        show.legend = FALSE,
+        inherit.aes = FALSE
+      ) +
+      scale_x_continuous(limits = c(-15, max(rna_mixes$end) - 5)) +
+      theme_bw() +
+      theme(
+        strip.background = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        strip.placement = "outside",
+        legend.position = "top",
+        legend.title = element_blank()
+      )
+    print(p)
+  }
+}
+
 ```

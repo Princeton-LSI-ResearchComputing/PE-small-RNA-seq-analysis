@@ -37,21 +37,4 @@ human_gene_counts <- human_gene_counts %>%
     ., human_counts_dir, ""
   )) %>%
   rename_all(~ str_replace_all(., "_first_proper_pair_gene_count.txt", ""))
-
-exogenous_gene_counts_category <- exogenous_rna_count_data %>%
-  tidyr::unite(gene, c(sequence_name, category), sep = ":") %>%
-  tidyr::spread(sample_unit, count)
-
-exogenous_gene_counts_total <- exogenous_rna_mapped_totals %>%
-  dplyr::mutate(gene = paste(sequence_name, "total", sep = ":")) %>%
-  dplyr::select(-"sequence_name") %>%
-  tidyr::spread(sample_unit, mapped_fragments)
-
-gene_counts <- rbind(
-  human_gene_counts,
-  exogenous_gene_counts_category,
-  exogenous_gene_counts_total
-)
-
-gene_counts
 ```

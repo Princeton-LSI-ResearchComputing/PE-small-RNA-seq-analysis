@@ -7,15 +7,22 @@ quarto render differential-expression.qmd
 
 quarto render coverage-plots.qmd \
     --to html \
-    -P normalization:human_small_rna \
-    --output coverage-plots-norm-human-small-rna.html
+    -P plot_other:FALSE \
+    --output coverage-plots-without-other.html
 
 quarto render coverage-plots.qmd \
     --to html \
-    -P normalization:exogenous_rna \
-    --output coverage-plots-norm-exogenous-rna.html
+    -P plot_other:TRUE \
+    --output coverage-plots-with-other.html
 
 quarto render coverage-plots.qmd \
     --to html \
-    -P normalization:exogenous_rna_category \
-    --output coverage-plots-norm-exogenous-rna-category.html
+    -P plot_other:FALSE \
+    -P label_both_x_axis:TRUE \
+    --output coverage-plots-without-other-label-both-x-axis.html
+
+quarto render coverage-plots.qmd \
+    --to html \
+    -P plot_other:TRUE \
+    -P label_both_x_axis:TRUE \
+    --output coverage-plots-with-other-label-both-x-axis.html

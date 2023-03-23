@@ -7,6 +7,7 @@ format:
     code-fold: true
     df-print: paged
     embed-resources: true
+    fig-format: svg
 editor: source
 ---
 
@@ -91,6 +92,7 @@ biotype_counts
 #| label: biotype-barplot
 #| fig-height: 7
 #| fig-width: 16
+#| fig-format: pdf
 p <- ggplot(
   data = subset(biotype_counts, !is.na(count)),
   aes(x = sample, y = count, fill = biotype)

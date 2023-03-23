@@ -57,7 +57,7 @@ granges_from_bam <- function(sample_unit,
       )
 
     # Inactive Cryptic Termination
-    aligned_fragments_list$inactive_cryptic_terminiation <-
+    aligned_fragments_list$inactive_cryptic_termination <-
       aligned_fragments %>%
       plyranges::filter(end < rna_info$inactive_ct_end_max)
 
@@ -122,7 +122,7 @@ exogenous_rna_count_data <- tibble(
   sample_unit = character(),
   sequence_name = character(),
   category = character(),
-  count = numeric()
+  count = integer()
 )
 for (rna_species in names(rna_species_plot_data)) {
   for (sample_unit in names(rna_species_plot_data[[rna_species]])) {
@@ -148,6 +148,6 @@ exogenous_rna_count_data
 #| label: summarize-coverage-data
 exogenous_rna_mapped_totals <- exogenous_rna_count_data %>%
   group_by(sample_unit, sequence_name) %>%
-  summarize(mapped_fragments = sum(count))
+  summarize(mapped_fragments = sum(count), .groups = "keep")
 exogenous_rna_mapped_totals
 ```
