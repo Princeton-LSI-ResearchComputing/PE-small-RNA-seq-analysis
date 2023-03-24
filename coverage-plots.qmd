@@ -35,9 +35,7 @@ library("stringr")
 library("forcats")
 library("GenomicAlignments")
 library("plyranges")
-library("rlang")
 library("ggplot2")
-library("RColorBrewer")
 ```
 
 # Read sample data
@@ -151,7 +149,7 @@ for (rna_species in rna_mixes %>%
   for (day in days_to_plot) {
     # Get sample units for day
     sample_units_for_day <- sample_units_to_plot %>%
-      filter(day == {{ day }}) %>%
+      dplyr::filter(day == {{ day }}) %>%
       pull(sample_unit)
 
     day_data <- tibble(
@@ -168,7 +166,7 @@ for (rna_species in rna_mixes %>%
     # Loop over sample units for this day
     for (sample_unit in sample_units_for_day) {
       cell_line <- sample_units_to_plot %>%
-        filter(sample_unit == {{ sample_unit }}) %>%
+        dplyr::filter(sample_unit == {{ sample_unit }}) %>%
         pull(cell_line) %>%
         toString()
 
@@ -240,7 +238,7 @@ for (rna_species in rna_mixes %>%
       col_types = "ciic"
     )
     pegrna_offset <- annotations %>%
-      filter(name == "protospacer") %>%
+      dplyr::filter(name == "protospacer") %>%
       pull(chromStart)
     annotations <- annotations %>%
       dplyr::mutate(
@@ -253,7 +251,7 @@ for (rna_species in rna_mixes %>%
     sgrna_rect <- data.frame(
       xmin = 0,
       xmax = annotations %>%
-        filter(name == "sgRNA_end") %>%
+        dplyr::filter(name == "sgRNA_end") %>%
         pull(chromStart) + 0.5,
       ymin = -Inf,
       ymax = Inf
@@ -261,10 +259,10 @@ for (rna_species in rna_mixes %>%
     # Terminator hightlight
     terminator_rect <- data.frame(
       xmin = annotations %>%
-        filter(name == "pegRNA_end") %>%
+        dplyr::filter(name == "pegRNA_end") %>%
         pull(chromStart) - 0.5,
       xmax = annotations %>%
-        filter(name == "terminator_end") %>%
+        dplyr::filter(name == "terminator_end") %>%
         pull(chromStart) + 0.5,
       ymin = -Inf,
       ymax = Inf
@@ -272,7 +270,7 @@ for (rna_species in rna_mixes %>%
 
     # Edit line
     annotation_lines <- annotations %>%
-      filter(name %in% c("edit")) %>%
+      dplyr::filter(name %in% c("edit")) %>%
       mutate(x = chromStart) %>%
       mutate(linetype = "solid")
 
@@ -280,7 +278,7 @@ for (rna_species in rna_mixes %>%
     annotation_lines <- rbind(
       annotation_lines,
       annotations %>%
-        filter(name %in% c("PBS")) %>%
+        dplyr::filter(name %in% c("PBS")) %>%
         mutate(x = chromStart) %>%
         mutate(linetype = "dotted")
     )
@@ -315,9 +313,9 @@ for (rna_species in rna_mixes %>%
         names_to = "normalization",
         values_to = "coverage"
       ) %>%
-      filter(category %in% categories_to_plot) %>%
+      dplyr::filter(category %in% categories_to_plot) %>%
       mutate(category = droplevels(category)) %>%
-      filter(normalization %in% normalizations_to_plot) %>%
+      dplyr::filter(normalization %in% normalizations_to_plot) %>%
       mutate(position = position - pegrna_offset) %>%
       mutate(category = suppressWarnings(
         fct_relevel(category, category_level_order)
@@ -338,10 +336,10 @@ for (rna_species in rna_mixes %>%
       summarize(coverage = sum(coverage), .groups = "keep")
 
     ylims_human <- range(plot_data %>%
-      filter(normalization == "human_small_rna") %>%
+      dplyr::filter(normalization == "human_small_rna") %>%
       pull(coverage))
     ylims_exogenous <- range(plot_data %>%
-      filter(normalization == "exogenous_rna_category") %>%
+      dplyr::filter(normalization == "exogenous_rna_category") %>%
       pull(coverage))
 
     p <- ggplot(
@@ -461,7 +459,7 @@ for (rna_species in rna_mixes %>%
   for (day in days_to_plot) {
     # Get sample units for day
     sample_units_for_day <- sample_units_to_plot %>%
-      filter(day == {{ day }}) %>%
+      dplyr::filter(day == {{ day }}) %>%
       pull(sample_unit)
 
     day_data <- tibble(
@@ -478,7 +476,7 @@ for (rna_species in rna_mixes %>%
     # Loop over sample units for this day
     for (sample_unit in sample_units_for_day) {
       cell_line <- sample_units_to_plot %>%
-        filter(sample_unit == {{ sample_unit }}) %>%
+        dplyr::filter(sample_unit == {{ sample_unit }}) %>%
         pull(cell_line) %>%
         toString()
 
@@ -550,7 +548,7 @@ for (rna_species in rna_mixes %>%
       col_types = "ciic"
     )
     pegrna_offset <- annotations %>%
-      filter(name == "protospacer") %>%
+      dplyr::filter(name == "protospacer") %>%
       pull(chromStart)
     annotations <- annotations %>%
       dplyr::mutate(
@@ -563,7 +561,7 @@ for (rna_species in rna_mixes %>%
     sgrna_rect <- data.frame(
       xmin = 0,
       xmax = annotations %>%
-        filter(name == "sgRNA_end") %>%
+        dplyr::filter(name == "sgRNA_end") %>%
         pull(chromStart) + 0.5,
       ymin = -Inf,
       ymax = Inf
@@ -571,10 +569,10 @@ for (rna_species in rna_mixes %>%
     # Terminator hightlight
     terminator_rect <- data.frame(
       xmin = annotations %>%
-        filter(name == "pegRNA_end") %>%
+        dplyr::filter(name == "pegRNA_end") %>%
         pull(chromStart) - 0.5,
       xmax = annotations %>%
-        filter(name == "terminator_end") %>%
+        dplyr::filter(name == "terminator_end") %>%
         pull(chromStart) + 0.5,
       ymin = -Inf,
       ymax = Inf
@@ -582,7 +580,7 @@ for (rna_species in rna_mixes %>%
 
     # Edit line
     annotation_lines <- annotations %>%
-      filter(name %in% c("edit")) %>%
+      dplyr::filter(name %in% c("edit")) %>%
       mutate(x = chromStart) %>%
       mutate(linetype = "solid")
 
@@ -590,7 +588,7 @@ for (rna_species in rna_mixes %>%
     annotation_lines <- rbind(
       annotation_lines,
       annotations %>%
-        filter(name %in% c("PBS")) %>%
+        dplyr::filter(name %in% c("PBS")) %>%
         mutate(x = chromStart) %>%
         mutate(linetype = "dotted")
     )
@@ -625,9 +623,9 @@ for (rna_species in rna_mixes %>%
         names_to = "normalization",
         values_to = "coverage"
       ) %>%
-      filter(category %in% categories_to_plot) %>%
+      dplyr::filter(category %in% categories_to_plot) %>%
       mutate(category = droplevels(category)) %>%
-      filter(normalization %in% normalizations_to_plot) %>%
+      dplyr::filter(normalization %in% normalizations_to_plot) %>%
       mutate(position = position - pegrna_offset) %>%
       mutate(category = suppressWarnings(
         fct_relevel(category, category_level_order)
@@ -648,10 +646,10 @@ for (rna_species in rna_mixes %>%
       summarize(coverage = sum(coverage), .groups = "keep")
 
     ylims_human <- range(plot_data %>%
-      filter(normalization == "human_small_rna") %>%
+      dplyr::filter(normalization == "human_small_rna") %>%
       pull(coverage))
     ylims_exogenous <- range(plot_data %>%
-      filter(normalization == "exogenous_rna_category") %>%
+      dplyr::filter(normalization == "exogenous_rna_category") %>%
       pull(coverage))
 
     p <- ggplot(
