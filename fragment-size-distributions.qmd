@@ -1,0 +1,122 @@
+---
+title: "Fragement Size Distribution"
+author: "Lance Parsons"
+format:
+  html:
+    toc: true
+    code-fold: true
+    df-print: paged
+    embed-resources: true
+    fig-format: svg
+editor: source
+---
+
+
+# Load libraries
+
+This project uses [`renv`](https://rstudio.github.io/renv/articles/renv.html)
+to keep track of installed packages. Install `renv` if not installed and load
+dependencies with `renv::restore()`.
+
+```r
+install.packages("renv")
+renv::restore()
+```
+
+```{r}
+#| label: load-packages
+#| include: false
+#| message: false
+library("readr")
+library("dplyr")
+library("tidyr")
+library("stringr")
+library("ggplot2")
+```
+
+# Read data
+
+## Sample metadata
+
+{{< include _sample-metadata.qmd >}}
+
+## Size distributions
+
+```{r}
+#| label: read-size-distributions
+human_isize_dir <-
+  "results/picard_insert_size/Homo_sapiens.GRCh38.dna.primary_assembly/"
+exogenous_rna_isize_dir <- "results/picard_insert_size/exogenous_rna/"
+
+isize_hist_data <- tibble(
+  "insert_size" = integer(),
+  "count" = integer(),
+  "sample_unit" = character(),
+  "genome" = character()
+)
+
+for (i in seq_along(sample_units$sample_unit)) {
+  this_isize_hist_data <- readr::read_tsv(
+    paste0(
+      human_isize_dir,
+      sample_units$sample_unit[i],
+      ".isize.txt"
+    ),
+    comment = "#",
+    skip = 11,
+    col_names = c("insert_size", "count"),
+    col_types = "ii"
+  ) %>%
+    mutate(sample_unit = sample_units$sample_unit[i], genome = "human")
+  isize_hist_data <- rbind(isize_hist_data, this_isize_hist_data)
+
+  this_isize_hist_data <- readr::read_tsv(
+    paste0(
+      exogenous_rna_isize_dir,
+      sample_units$sample_unit[i],
+      ".isize.txt"
+    ),
+    comment = "#",
+    skip = 11,
+    col_names = c("insert_size", "count"),
+    col_types = "ii"
+  ) %>%
+    mutate(sample_unit = sample_units$sample_unit[i], genome = "exogenous_rna")
+  isize_hist_data <- rbind(isize_hist_data, this_isize_hist_data)
+}
+
+isize_hist_data <- isize_hist_data %>%
+  dplyr::full_join(sample_units, by = "sample_unit")
+```
+
+# Histograms
+
+```{r, fig.width=10, fig.height=10}
+#| label: histograms
+#| fig-width: 10
+#| fig-height: 10
+
+# Choose colors
+colors <- c("#003f5c", "#ffa600")
+
+# Group data
+isize_hist_data_grouped <- isize_hist_data %>%
+  group_by(
+    insert_size, sample_unit, sample_name, batch,
+    cell_line, exogenous_rna, day, unit_name
+  ) %>%
+  summarise(count = sum(count), .groups = "keep") %>%
+  group_by(sample_unit)
+
+# Plot
+ggplot(
+  data = isize_hist_data_grouped %>% mutate(normcount = count / sum(count)),
+  aes(x = insert_size, y = normcount, group = sample_unit)
+) +
+  geom_line(aes(color = cell_line)) +
+  scale_color_manual(values = colors) +
+  ylab("Fraction of fragments of each size") +
+  xlab("Fragment size") +
+  facet_wrap(facets = ~ interaction(day, exogenous_rna), ncol = 2) +
+  theme_bw()
+```
