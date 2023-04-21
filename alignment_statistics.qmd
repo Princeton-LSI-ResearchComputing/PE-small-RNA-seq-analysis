@@ -1,0 +1,320 @@
+---
+title: "Alignment Statistics"
+author: "Lance Parsons"
+format:
+  html:
+    toc: true
+    code-fold: true
+    df-print: paged
+    embed-resources: true
+    fig-format: svg
+editor: source
+---
+
+
+# Load libraries
+
+This project uses [`renv`](https://rstudio.github.io/renv/articles/renv.html)
+to keep track of installed packages. Install `renv` if not installed and load
+dependencies with `renv::restore()`.
+
+```r
+install.packages("renv")
+renv::restore()
+```
+
+```{r}
+#| label: load-packages
+#| include: false
+#| message: false
+library("readr")
+library("dplyr")
+library("tidyr")
+library("stringr")
+library("ggplot2")
+library("GenomicAlignments")
+```
+
+# Read data
+
+## Sample metadata
+
+{{< include _sample-metadata.qmd >}}
+
+
+## BAM reading functions
+```{r}
+#| label: bam-functions
+rna_species_plot_range <- function(sequence_name) {
+  plot_range <- rna_mixes %>%
+    dplyr::filter(.data$rna_species == sequence_name) %>%
+    dplyr::select(start, end) %>%
+    unique()
+  return(plot_range)
+}
+
+# GRanges from BAM
+read_alignments <- function(sample_unit,
+                            sequence_name,
+                            is_proper_pair = TRUE,
+                            mapq_filter = 1,
+                            bam_dir =
+                              "results/alignments/exogenous_rna/sorted") {
+  plot_range <- rna_species_plot_range(sequence_name)
+  which <- GRanges(
+    sprintf("%s:%i-%i", sequence_name, plot_range$start, plot_range$end)
+  )
+
+  param <- ScanBamParam(
+    flag = scanBamFlag(isProperPair = as.logical(is_proper_pair)),
+    mapqFilter = mapq_filter,
+    which = which
+  )
+
+  aligned_reads <- granges(
+    readGAlignments(
+      sprintf("%s/%s.bam", bam_dir, sample_unit),
+      param = param
+    ),
+  )
+  return(aligned_reads)
+}
+```
+
+## Alignment counts
+```{r}
+#| label: alignment-counts-mapq
+
+sample_unit_regions <- sample_units %>%
+  left_join(rna_mixes, by = "exogenous_rna") %>%
+  select(sample_unit, rna_species)
+
+alignment_counts_mapq <- sample_unit_regions %>%
+  mutate(
+    mapqfilter = factor(1, levels = c(0, 1)),
+    proper_pair = factor(TRUE, levels = c(TRUE, FALSE))
+  ) %>%
+  group_by(sample_unit, rna_species) %>%
+  tidyr::expand(mapqfilter, proper_pair) %>%
+  left_join(sample_unit_regions, by = c("sample_unit", "rna_species")) %>%
+  rowwise() %>%
+  mutate(count = length(read_alignments(
+    sample_unit, rna_species, as.logical(proper_pair), mapqfilter
+  )))
+
+alignment_counts_mapq
+```
+
+```{r}
+#| label: alignment-counts-multimapping
+
+alignment_counts_mm <- alignment_counts_mapq %>%
+  group_by(sample_unit, rna_species, proper_pair) %>%
+  summarize(count = abs(count[1] - count[2]), .groups = "keep") %>%
+  mutate(mapping_type = "multimapping")
+
+alignment_counts_all <- rbind(
+  alignment_counts_mapq %>%
+    mutate(mapping_type = case_when(
+      mapqfilter == 1 ~ "unique",
+      mapqfilter == 0 ~ "all"
+    )) %>%
+    select(-mapqfilter),
+  alignment_counts_mm
+) %>%
+  ungroup() %>%
+  arrange(sample_unit, rna_species, proper_pair, mapping_type) %>%
+  relocate(count, .after = last_col())
+```
+
+
+```{r}
+#| label: mapping-group-table
+
+mapping_groups <- tibble(
+  mapping_group_interaction = factor(c(
+    "FALSE.multimapping",
+    "TRUE.multimapping",
+    "FALSE.unique",
+    "TRUE.unique"
+  )),
+  mapping_group = factor(c(
+    "Multimapped:Discordant",
+    "Multimapped:Proper Pair",
+    "Uniquely Mapped:Discordant",
+    "Uniquely Mapped:Proper Pair"
+  ))
+)
+
+alignment_counts <- alignment_counts_all %>%
+  dplyr::filter(mapping_type != "all") %>%
+  mutate(mapping_group_interaction = interaction(proper_pair, mapping_type)) %>%
+  left_join(mapping_groups, by = "mapping_group_interaction")
+alignment_counts
+```
+
+## All Data Combined 
+```{r, fig.width=8, fig.height=8}
+#| label: plot-alignment-counts
+
+plot_data <- alignment_counts
+write_tsv(plot_data, "multimapping-stats-all.tsv")
+
+ggplot(plot_data, aes(x = rna_species, y = count)) +
+  geom_bar(
+    stat = "identity", position = "fill",
+    aes(fill = mapping_group)
+  ) +
+  scale_fill_manual(
+    name = "Mapping",
+    values = c("#dfc27d", "#a6611a", "#80cdc1", "#018571"),
+  ) +
+  xlab("(e)pegRNA") +
+  ylab("Percent of reads mapped") +
+  ggtitle("Unique vs Multimapped Reads") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 270, vjust = 0.5, hjust = 0))
+```
+
+## Batch 2
+
+```{r, fig.width=8, fig.height=5}
+#| label: batch-2
+
+plot_data <- alignment_counts %>%
+  left_join(sample_units, by = "sample_unit") %>%
+  dplyr::filter(batch == "batch2") %>%
+  group_by(rna_species, mapping_group, cell_line, day) %>%
+  summarize(meancount = mean(count), .groups = "keep")
+write_tsv(plot_data, "multimapping-stats-batch2.tsv")
+
+ggplot(plot_data, aes(x = rna_species, y = meancount)) +
+  geom_bar(
+    stat = "identity", position = "fill",
+    aes(fill = mapping_group)
+  ) +
+  scale_fill_manual(
+    name = "Mapping",
+    values = c("#dfc27d", "#a6611a", "#80cdc1", "#018571"),
+  ) +
+  xlab("(e)pegRNA") +
+  ylab("Percent of reads mapped") +
+  ggtitle("Batch 2 - Unique vs Multimapped Reads") +
+  facet_wrap(~ cell_line + day, ncol = 4) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 270, vjust = 0.5, hjust = 0))
+```
+
+
+## Batch 2 Grouped
+
+```{r, fig.width=8, fig.height=5}
+#| label: batch-2-grouped
+
+ggplot(plot_data, aes(x = cell_line, y = meancount)) +
+  geom_bar(
+    stat = "identity", position = "fill",
+    aes(fill = mapping_group)
+  ) +
+  scale_fill_manual(
+    name = "Mapping",
+    values = c("#dfc27d", "#a6611a", "#80cdc1", "#018571"),
+    labels = c(
+      "FALSE.multimapping" = "Multimapped:Discordant",
+      "TRUE.multimapping" = "Multimapped:Proper Pair",
+      "FALSE.unique" = "Uniquely Mapped:Discordant",
+      "TRUE.unique" = "Uniquely Mapped:Proper Pair"
+    )
+  ) +
+  xlab("(e)pegRNA") +
+  ylab("Percent of reads mapped") +
+  ggtitle("Batch 2 - Unique vs Multimapped Reads") +
+  facet_wrap(~ rna_species + day, ncol = 4) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 270, vjust = 0.5, hjust = 0))
+```
+
+## Batch 3
+
+```{r, fig.width=10, fig.height=6}
+#| label: batch-3
+
+plot_data <- alignment_counts %>%
+  left_join(sample_units, by = "sample_unit") %>%
+  dplyr::filter(batch == "batch3") %>%
+  group_by(rna_species, mapping_group, cell_line, day) %>%
+  summarize(meancount = mean(count), .groups = "keep")
+write_tsv(plot_data, "multimapping-stats-batch3.tsv")
+
+ggplot(plot_data, aes(x = rna_species, y = meancount)) +
+  geom_bar(
+    stat = "identity", position = "fill",
+    aes(fill = mapping_group)
+  ) +
+  scale_fill_manual(
+    name = "Mapping",
+    values = c("#dfc27d", "#a6611a", "#80cdc1", "#018571"),
+  ) +
+  xlab("(e)pegRNA") +
+  ylab("Percent of reads mapped") +
+  ggtitle("Batch 3 - Unique vs Multimapped Reads") +
+  facet_wrap(~ cell_line + day, ncol = 4) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 270, vjust = 0.5, hjust = 0))
+```
+
+
+## Batch 3 Grouped
+
+```{r, fig.width=12, fig.height=10}
+#| label: batch-3-grouped
+
+ggplot(plot_data, aes(x = cell_line, y = meancount)) +
+  geom_bar(
+    stat = "identity", position = "fill",
+    aes(fill = mapping_group)
+  ) +
+  scale_fill_manual(
+    name = "Mapping",
+    values = c("#dfc27d", "#a6611a", "#80cdc1", "#018571"),
+  ) +
+  xlab("(e)pegRNA") +
+  ylab("Percent of reads mapped") +
+  ggtitle("Batch 3 - Unique vs Multimapped Reads") +
+  facet_wrap(~ rna_species + day, ncol = 8) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 270, vjust = 0.5, hjust = 0))
+```
+
+## Mastermixes
+
+```{r, fig.width=6, fig.height=5}
+#| label: mastermixes
+
+table_data <- alignment_counts %>%
+  left_join(sample_units, by = "sample_unit") %>%
+  group_by(mapping_group, exogenous_rna, cell_line, day, unit_name) %>%
+  summarize(meancount = mean(count), .groups = "keep")
+write_tsv(table_data, "multimapping-stats-mastermixes-split.tsv")
+
+plot_data <- alignment_counts %>%
+  left_join(sample_units, by = "sample_unit") %>%
+  group_by(mapping_group, exogenous_rna) %>%
+  summarize(meancount = mean(count), .groups = "keep")
+write_tsv(plot_data, "multimapping-stats-mastermixes.tsv")
+
+ggplot(plot_data, aes(x = exogenous_rna, y = meancount)) +
+  geom_bar(
+    stat = "identity", position = "fill",
+    aes(fill = mapping_group)
+  ) +
+  scale_fill_manual(
+    name = "Mapping",
+    values = c("#dfc27d", "#a6611a", "#80cdc1", "#018571"),
+  ) +
+  xlab("(e)pegRNA") +
+  ylab("Percent of reads mapped") +
+  ggtitle("Mastermixes - Unique vs Multimapped Reads") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 270, vjust = 0.5, hjust = 0))
+```
