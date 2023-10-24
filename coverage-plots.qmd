@@ -1,6 +1,7 @@
 ---
 title: "Exogenous RNA Coverage Plots"
 author: "Lance Parsons"
+date: last-modified
 format:
   html:
     toc: true
@@ -272,7 +273,7 @@ for (rna_species in rna_mixes %>%
     annotation_lines <- annotations %>%
       dplyr::filter(name %in% c("edit")) %>%
       mutate(x = chromStart) %>%
-      mutate(linetype = "solid")
+      mutate(linetype = "dotted")
 
     # PBS Start line
     annotation_lines <- rbind(
@@ -280,7 +281,7 @@ for (rna_species in rna_mixes %>%
       annotations %>%
         dplyr::filter(name %in% c("PBS")) %>%
         mutate(x = chromStart) %>%
-        mutate(linetype = "dotted")
+        mutate(linetype = "solid")
     )
 
     # Labels
@@ -326,14 +327,17 @@ for (rna_species in rna_mixes %>%
       mutate(cell_line_category = suppressWarnings(
         fct_relevel(cell_line_category, cell_line_category_order)
       )) %>%
+      mutate(group = interaction(sample_unit, cell_line_category)) %>%
       group_by(
         position,
         rna_species,
         sample_unit,
         cell_line_category,
+        group,
         normalization
       ) %>%
       summarize(coverage = sum(coverage), .groups = "keep")
+
 
     ylims_human <- range(plot_data %>%
       dplyr::filter(normalization == "human_small_rna") %>%
@@ -347,7 +351,7 @@ for (rna_species in rna_mixes %>%
       aes(
         x = position,
         y = coverage,
-        group = interaction(cell_line_category, sample_unit),
+        group = group,
         color = cell_line_category
       )
     ) +
@@ -636,6 +640,7 @@ for (rna_species in rna_mixes %>%
       mutate(cell_line_category = suppressWarnings(
         fct_relevel(cell_line_category, cell_line_category_order)
       )) %>%
+      mutate(group = interaction(sample_unit, cell_line_category)) %>%
       group_by(
         position,
         rna_species,

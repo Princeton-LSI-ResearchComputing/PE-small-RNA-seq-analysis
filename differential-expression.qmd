@@ -1,6 +1,7 @@
 ---
 title: "smallRNA Differential Expression"
 author: "Lance Parsons"
+date: last-modified
 format:
   html:
     toc: true

@@ -42,10 +42,10 @@ category_labels <- list(
 )
 cell_line_category_labels <- c(
   "P1E10_other" = "SSB-ko4, other",
-  "P1E10_active_trans" = "SSB-ko4, bin 2",
-  "P1E10_active_cis" = "SSB-ko4, bin 1",
   "Parental_other" = "parental, other",
+  "P1E10_active_trans" = "SSB-ko4, bin 2",
   "Parental_active_trans" = "parental, bin 2",
+  "P1E10_active_cis" = "SSB-ko4, bin 1",
   "Parental_active_cis" = "parental, bin 1"
 )
 # Cell lines
