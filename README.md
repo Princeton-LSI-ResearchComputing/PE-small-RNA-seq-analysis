@@ -1,6 +1,7 @@
 # Snakemake workflow: smallRNA Pipeline
 
 [![Snakemake](https://img.shields.io/badge/snakemake-≥7.9.0-brightgreen.svg)](https://snakemake.github.io/)
+[![DOI](https://zenodo.org/badge/631045084.svg)](https://zenodo.org/badge/latestdoi/631045084)
 
 Workflow for the analysis of small RNA-seq data for Yan et. al, "An endogenous
 small RNA-binding protein safeguards prime editing" (in press).
