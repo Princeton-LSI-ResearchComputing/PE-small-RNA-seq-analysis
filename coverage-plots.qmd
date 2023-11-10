@@ -272,17 +272,16 @@ for (rna_species in rna_mixes %>%
     # Edit line
     annotation_lines <- annotations %>%
       dplyr::filter(name %in% c("edit")) %>%
-      mutate(x = chromStart) %>%
-      mutate(linetype = "dotted")
+      mutate(x = chromStart)
 
     # PBS Start line
     annotation_lines <- rbind(
       annotation_lines,
       annotations %>%
         dplyr::filter(name %in% c("PBS")) %>%
-        mutate(x = chromStart) %>%
-        mutate(linetype = "solid")
+        mutate(x = chromStart)
     )
+    annotation_linetypes <- c("edit" = "solid", "PBS" = "dashed")
 
     # Labels
     annotation_labels <- annotation_lines %>%
@@ -360,11 +359,12 @@ for (rna_species in rna_mixes %>%
         color = "#777777",
         lwd = 0.6,
         aes(
-          linetype = linetype,
+          linetype = name,
           xintercept = x
         ),
         show.legend = FALSE
       ) +
+      scale_linetype_manual(values = annotation_linetypes) +
       geom_rect(
         data = sgrna_rect,
         aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
@@ -437,314 +437,93 @@ for (rna_species in rna_mixes %>%
   }
 }
 ```
-```{r, fig.height=5, fig.width=10}
-#| label: coverage-plots-facet-day
-#| fig-height: 5
-#| fig-width: 10
 
-# Label both facets x-axis
-facet_scales <- "free_y"
-if (params$label_both_x_axis) {
-  facet_scales <- "free"
-}
+### 3' Coverage Quantification
 
-# Loop over exogenous rna species
-for (rna_species in rna_mixes %>%
-  pull(rna_species) %>%
-  unique()) {
-  # Get list of sample units we will plot
-  sample_units_to_plot <- sample_units %>%
-    dplyr::filter(sample_unit %in% names(rna_species_plot_data[[rna_species]]))
+Here we attempt to quantify the difference in the cis-active coverage on the three-prime (3') between the parental and SSB-ko4 samples. This is done by first counting the number of cis-active fragments for each sample that contain the first nucleotide of the primer binding site (PBS) and the number of cis-active fragments that do not cover that base. Then, for each sample we normalize these counts to the total human smRNA and finally compute the fraction of cis-active fragments containing the first nucleotide of the PBS.
 
-  # Loop over days
-  days_to_plot <- sample_units_to_plot %>%
-    pull(day) %>%
-    levels()
-  for (day in days_to_plot) {
-    # Get sample units for day
-    sample_units_for_day <- sample_units_to_plot %>%
-      dplyr::filter(day == {{ day }}) %>%
-      pull(sample_unit)
+```{r}
+#| label: cis-actitve-pbs-quantification
 
-    day_data <- tibble(
-      rna_species = character(),
-      postion = numeric(),
-      coverage = numeric(),
-      sample_unit = character(),
-      cell_line = factor(),
-      category = factor(),
-      cov_human_norm = numeric(),
-      cov_cateory_norm = numeric()
-    )
+# Create table with: sample, active_cis_pbs, active_cis_nopbs
+cis_active_pbs_quantification <- tibble(
+  sample_unit = character(),
+  sequence_name = character(),
+  cis_active_pbs = integer(),
+  cis_active_nopbs = integer(),
+  human_small_rna = integer(),
+)
+for (rna_species in names(rna_species_plot_data)) {
+  rna_species_data <- rna_species_plot_data[[rna_species]]
+  for (sample_unit in names(rna_species_data)) {
+    sample_unit_data <- rna_species_data[[sample_unit]]
 
-    # Loop over sample units for this day
-    for (sample_unit in sample_units_for_day) {
-      cell_line <- sample_units_to_plot %>%
-        dplyr::filter(sample_unit == {{ sample_unit }}) %>%
-        pull(cell_line) %>%
-        toString()
-
-      for (category in
-        names(rna_species_plot_data[[rna_species]][[sample_unit]])) {
-        # Calculate coverage
-        data <- coverage(rna_species_plot_data[[rna_species]]
-        [[sample_unit]][[category]])[[rna_species]]
-
-        if (category %in% c("inactive_cryptic_termination", "inactive_other")) {
-          category <- "other"
-        }
-        # Organize into a tibble
-        category_data <- tibble(
-          rna_species = rna_species,
-          coverage = as.numeric(data),
-          sample_unit = sample_unit,
-          cell_line = as.factor(cell_line),
-          category = as.factor(category)
-        ) %>%
-          tibble::rowid_to_column("position")
-
-        # Normalize scores
-        norm_factor_human <- normalization_factor(
-          sample_unit, rna_species, category, "human_small_rna"
-        )
-        norm_factor_category <- normalization_factor(
-          sample_unit, rna_species, category, "exogenous_rna_category"
-        )
-        category_data <- category_data %>%
-          mutate(human_small_rna = (coverage / norm_factor_human) * 1e6) %>%
-          mutate(exogenous_rna_category = coverage / norm_factor_category)
-
-        # Append to sample unit data
-        day_data <- rbind(day_data, category_data)
-      }
-    }
-
-    # Combine other categories
-    day_data_2 <- day_data %>%
-      mutate(category = factor(
-        x = category,
-        levels = c("active_cis", "active_trans", "other")
-      )) %>%
-      group_by(position, rna_species, sample_unit, cell_line, category) %>%
-      summarize(
-        coverage = sum(coverage),
-        human_small_rna = sum(human_small_rna),
-        exogenous_rna_category = sum(exogenous_rna_category),
-        .groups = "keep"
-      )
-
-    categories_to_plot <- c("active_cis", "active_trans")
-    if (params$plot_other) {
-      categories_to_plot <- c(categories_to_plot, "other")
-    }
-
-    normalizations_to_plot <- c("human_small_rna", "exogenous_rna_category")
-
-    normalization_labs <- as_labeller(c(
-      human_small_rna = "per million human small rna",
-      exogenous_rna_category = "as fraction of reads in category"
-    ))
-
-
-    annotations <- read_tsv(
+    # Read annotations for PBS location
+    pbs_start <- read_tsv(
       sprintf("data/references/exogenous-rna/%s.bed", rna_species),
       col_names = c("chrom", "chromStart", "chromEnd", "name"),
       col_types = "ciic"
-    )
-    pegrna_offset <- annotations %>%
-      dplyr::filter(name == "protospacer") %>%
+    ) %>%
+      filter(name == "PBS") %>%
       pull(chromStart)
-    annotations <- annotations %>%
-      dplyr::mutate(
-        chromStart = chromStart - pegrna_offset,
-        chromEnd = chromEnd - pegrna_offset
+    cis_active_pbs <- length(sample_unit_data$active_cis %>% plyranges::filter(end > pbs_start))
+    cis_active_nopbs <- length(sample_unit_data$active_cis %>% plyranges::filter(end <= pbs_start))
+    human_small_rna <- normalization_factor(sample_unit, rna_species, "active_cis", "human_small_rna")
+    cis_active_pbs_quantification <- cis_active_pbs_quantification %>%
+      add_row(
+        sample_unit = sample_unit,
+        sequence_name = rna_species,
+        cis_active_pbs = cis_active_pbs,
+        cis_active_nopbs = cis_active_nopbs,
+        human_small_rna = human_small_rna,
       )
-
-    # Genome annotations
-    # sgRNA highlight
-    sgrna_rect <- data.frame(
-      xmin = 0,
-      xmax = annotations %>%
-        dplyr::filter(name == "sgRNA_end") %>%
-        pull(chromStart) + 0.5,
-      ymin = -Inf,
-      ymax = Inf
-    )
-    # Terminator hightlight
-    terminator_rect <- data.frame(
-      xmin = annotations %>%
-        dplyr::filter(name == "pegRNA_end") %>%
-        pull(chromStart) - 0.5,
-      xmax = annotations %>%
-        dplyr::filter(name == "terminator_end") %>%
-        pull(chromStart) + 0.5,
-      ymin = -Inf,
-      ymax = Inf
-    )
-
-    # Edit line
-    annotation_lines <- annotations %>%
-      dplyr::filter(name %in% c("edit")) %>%
-      mutate(x = chromStart) %>%
-      mutate(linetype = "solid")
-
-    # PBS Start line
-    annotation_lines <- rbind(
-      annotation_lines,
-      annotations %>%
-        dplyr::filter(name %in% c("PBS")) %>%
-        mutate(x = chromStart) %>%
-        mutate(linetype = "dotted")
-    )
-
-    # Labels
-    annotation_labels <- annotation_lines %>%
-      select(name, x) %>%
-      mutate(normalization = "exogenous_rna_category") %>%
-      mutate(
-        label = case_when(
-          name == "protospacer" ~ "pegRNA start",
-          name == "edit" ~ "edit",
-          name == "PBS" ~ "PBS start",
-          name == "sgRNA_end" ~ "sgRNA end",
-          name == "pegRNA_end" ~ "pegRNA end",
-          name == "terminator_end" ~ "Terminator end",
-        ),
-        label_just = case_when(
-          name == "protospacer" ~ 0,
-          name == "edit" ~ 1,
-          name == "PBS" ~ 0,
-          name == "sgRNA_end" ~ 1,
-          name == "pegRNA_end" ~ 0,
-          name == "terminator_end" ~ 0,
-        ),
-        nudge_x = case_when(label_just == 0 ~ 0.5, label_just == 1 ~ -0.5)
-      )
-
-    plot_data <- day_data %>%
-      tidyr::pivot_longer(
-        cols = c("coverage", "human_small_rna", "exogenous_rna_category"),
-        names_to = "normalization",
-        values_to = "coverage"
-      ) %>%
-      dplyr::filter(category %in% categories_to_plot) %>%
-      mutate(category = droplevels(category)) %>%
-      dplyr::filter(normalization %in% normalizations_to_plot) %>%
-      mutate(position = position - pegrna_offset) %>%
-      mutate(category = suppressWarnings(
-        fct_relevel(category, category_level_order)
-      )) %>%
-      mutate(cell_line = fct_relevel(cell_line, cell_line_order)) %>%
-      unite(cell_line_category, c(cell_line, category)) %>%
-      mutate(cell_line_category = factor(cell_line_category)) %>%
-      mutate(cell_line_category = suppressWarnings(
-        fct_relevel(cell_line_category, cell_line_category_order)
-      )) %>%
-      mutate(group = interaction(sample_unit, cell_line_category)) %>%
-      group_by(
-        position,
-        rna_species,
-        sample_unit,
-        cell_line_category,
-        normalization
-      ) %>%
-      summarize(coverage = sum(coverage), .groups = "keep")
-
-    ylims_human <- range(plot_data %>%
-      dplyr::filter(normalization == "human_small_rna") %>%
-      pull(coverage))
-    ylims_exogenous <- range(plot_data %>%
-      dplyr::filter(normalization == "exogenous_rna_category") %>%
-      pull(coverage))
-
-    p <- ggplot(
-      plot_data,
-      aes(
-        x = position,
-        y = coverage,
-        group = interaction(cell_line_category, sample_unit),
-        color = cell_line_category
-      )
-    ) +
-      geom_vline(
-        data = annotation_lines,
-        color = "#777777",
-        lwd = 0.6,
-        aes(
-          linetype = linetype,
-          xintercept = x
-        ),
-        show.legend = FALSE
-      ) +
-      geom_rect(
-        data = sgrna_rect,
-        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-        color = "lightgray",
-        alpha = 0.1,
-        inherit.aes = FALSE
-      ) +
-      geom_rect(
-        data = terminator_rect,
-        aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax),
-        color = "lightgray",
-        alpha = 0.1,
-        inherit.aes = FALSE
-      ) +
-      geom_line(lwd = 1) +
-      scale_color_manual(
-        name = "",
-        values = cell_line_category_colors[
-          seq_along(levels(plot_data$cell_line_category))
-        ],
-        labels = cell_line_category_labels
-      ) +
-      guides(
-        color = guide_legend(order = 1)
-      ) +
-      ylab("Coverage") +
-      xlab("Nucleotide position") +
-      facet_wrap(
-        facets = ~ factor(
-          normalization,
-          levels = c("human_small_rna", "exogenous_rna_category")
-        ),
-        scales = facet_scales,
-        ncol = 1,
-        strip.position = "left",
-        labeller = normalization_labs
-      ) +
-      ggtitle(paste(rna_species, "-", day)) +
-      geom_text(
-        data = tibble(
-          normalization = "human_small_rna",
-          name = c("sgRNA", "terminator"),
-          x = c(sgrna_rect$xmin, terminator_rect$xmin),
-          y = ylims_human[2] * 1.1
-        ),
-        aes(
-          x = x,
-          y = y,
-          label = name
-        ),
-        alpha = 0,
-        hjust = 0,
-        nudge_x = 1,
-        size = 5,
-        show.legend = FALSE,
-        inherit.aes = FALSE
-      ) +
-      scale_x_continuous(limits = c(-15, max(rna_mixes$end) - 5)) +
-      theme_bw() +
-      theme(
-        strip.background = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        strip.placement = "outside",
-        legend.position = "top",
-        legend.title = element_blank()
-      )
-    print(p)
   }
 }
+cis_active_pbs_quantification <- cis_active_pbs_quantification %>%
+  mutate(norm_cis_active_pbs = cis_active_pbs / human_small_rna) %>%
+  mutate(norm_cis_active_nopbs = cis_active_nopbs / human_small_rna) %>%
+  mutate(fraction_cis_active_pbs = cis_active_pbs / (cis_active_pbs + cis_active_nopbs)) %>%
+  full_join(sample_units, by = join_by(sample_unit))
+cis_active_pbs_quantification
+```
 
+```{r}
+#| label: normalize-cis-active-pbs
+
+summarized_three_prime_quantification <-
+  cis_active_pbs_quantification %>%
+  dplyr::group_by(sequence_name, cell_line, day) %>%
+  summarize(
+    cis_active_pbs_mean = mean(cis_active_pbs),
+    cis_active_pbs_se = sd(cis_active_pbs) / sqrt(length(cis_active_pbs)),
+    norm_cis_active_pbs_mean = mean(norm_cis_active_pbs),
+    norm_cis_active_pbs_se = sd(norm_cis_active_pbs) / sqrt(length(norm_cis_active_pbs)),
+    cis_active_nopbs_mean = mean(cis_active_nopbs),
+    cis_active_nopbs_se = sd(cis_active_nopbs) / sqrt(length(cis_active_nopbs)),
+    norm_cis_active_nopbs_mean = mean(norm_cis_active_nopbs),
+    fraction_cis_active_pbs_mean = mean(fraction_cis_active_pbs),
+    fraction_cis_active_pbs_se = sd(fraction_cis_active_pbs) / sqrt(length(fraction_cis_active_pbs)),
+    .groups = "keep"
+  )
+summarized_three_prime_quantification
+```
+
+```{r}
+#| label: plot_threeprime-quantification
+
+p <- ggplot(
+  summarized_three_prime_quantification,
+  aes(
+    fill = cell_line,
+    y = fraction_cis_active_pbs_mean,
+    x = interaction(sequence_name, day),
+  )
+) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_errorbar(aes(
+    ymin = fraction_cis_active_pbs_mean - fraction_cis_active_pbs_se,
+    ymax = fraction_cis_active_pbs_mean + fraction_cis_active_pbs_se
+  ), width = .2, position = position_dodge(.9)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0))
+p
 ```
