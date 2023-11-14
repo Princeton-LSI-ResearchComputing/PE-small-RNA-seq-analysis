@@ -22,3 +22,23 @@ rule exogenous_rna_bedpe:
         bedtools bamtobed {params.bedtools_options} -i stdin | \
         sort -k 1,1 -k6,6n > {output.bedpe:q} 2> {log:q}
         """
+
+
+rule exogenous_rna_alignment_stats:
+    input:
+        bam=expand(
+            "results/alignments/exogenous_rna/sorted/{unit.sample_name}_{unit.unit_name}.bam",
+            unit=units.itertuples(),
+        ),
+        bai=expand(
+            "results/alignments/exogenous_rna/sorted/{unit.sample_name}_{unit.unit_name}.bam.bai",
+            unit=units.itertuples(),
+        ),
+    output:
+        "results/alignments/exogenous_rna_alignment_stats/all_exogenous_rna_alignments_stats.tsv",
+    log:
+        "results/logs/exogenous_rna_alignment_stats/all_exogenous_rna_alignments_stats.ipynb",
+    conda:
+        "../envs/alignment_stats.yaml"
+    notebook:
+        "notebooks/alignment_stats.py.ipynb"
