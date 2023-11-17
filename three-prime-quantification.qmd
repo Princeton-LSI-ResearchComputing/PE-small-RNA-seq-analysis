@@ -218,7 +218,6 @@ threeprime_pbs_counts
 
 ### 3' PBS summary
 
-
 ```{r}
 #| label: summarize-three-prime-counts-pbs
 threeprime_pbs_counts_summarized <- summarize_three_prime_counts(
@@ -284,6 +283,89 @@ write_tsv(threeprime_pbs_ttest_twotailed, file.path(threeprime_dir, "threeprime-
 threeprime_pbs_ttest_twotailed
 ```
 
+## 3' edit
+
+### 3' edit counts
+
+```{r}
+#| label: three-prime-counts-edit
+threeprime_edit_counts <- cis_active_threeprime_counts(rna_species_plot_data, "edit", ">", "<=")
+write_tsv(threeprime_edit_counts, file.path(threeprime_dir, "threeprime-edit-counts.tsv"))
+threeprime_edit_counts
+```
+
+### 3' edit summary
+
+```{r}
+#| label: summarize-three-prime-counts-edit
+threeprime_edit_counts_summarized <- summarize_three_prime_counts(
+  threeprime_edit_counts, "cis_active_with_edit", "cis_active_without_edit")
+write_tsv(threeprime_edit_counts_summarized, file.path(threeprime_dir, "threeprime-edit-counts-summarized.tsv"))
+threeprime_edit_counts_summarized
+```
+
+### 3' edit plot
+
+```{r}
+#| label: plot_threeprime-count-edit
+
+p <- ggplot(
+  threeprime_edit_counts_summarized %>%
+    mutate(sample_day = interaction(sequence_name, day)),
+  aes(
+    fill = cell_line,
+    y = fraction_cis_active_with_edit_mean,
+    x = sample_day,
+  )
+) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_errorbar(aes(
+    ymin = fraction_cis_active_with_edit_mean - fraction_cis_active_with_edit_se,
+    ymax = fraction_cis_active_with_edit_mean + fraction_cis_active_with_edit_se
+  ), width = .2, position = position_dodge(.9)) +
+  ggtitle("Edit Coverage") +
+  ylab("Fraction of reads covering Edit start") +
+  xlab("Sample/Day") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0))
+p
+```
+
+### 3' edit t-test
+
+```{r}
+#| label: ttest-three-prime-counts-edit-onesided
+# Single Sided T-Test
+threeprime_edit_ttest_data <- threeprime_edit_counts %>%
+  mutate(sample_day = interaction(sequence_name, day)) %>%
+  select(fraction_cis_active_with_edit, unit_name, sample_day, cell_line) %>%
+  gather(key = variable, value = fraction_cis_active_with_edit, -sample_day, -cell_line, -unit_name) %>%
+  group_by(sample_day)
+
+threeprime_edit_ttest_onetailed <- threeprime_edit_ttest_data %>%
+  rstatix::t_test(fraction_cis_active_with_edit ~ cell_line, 
+                  ref.group = "Parental",
+                  p.adjust.method = "none", 
+                  alternative = "greater")
+write_tsv(threeprime_edit_ttest_onetailed, file.path(threeprime_dir, "threeprime-edit-ttest-onetailed.tsv"))
+threeprime_edit_ttest_onetailed
+```
+
+
+```{r}
+#| label: ttest-three-prime-counts-edit-twosided
+threeprime_edit_ttest_twotailed <- threeprime_edit_ttest_data %>%
+  rstatix::t_test(fraction_cis_active_with_edit ~ cell_line, 
+                  ref.group = "Parental", 
+                  p.adjust.method = "none", 
+                  alternative = "two.sided")
+write_tsv(threeprime_edit_ttest_twotailed, file.path(threeprime_dir, "threeprime-edit-ttest-twotailed.tsv"))
+threeprime_edit_ttest_twotailed
+```
+
+## 3' sgRNA
+
+### 3' sgRNA counts
+
 ```{r}
 #| label: three-prime-counts-sgrna
 
@@ -299,6 +381,9 @@ for (offset in 0:-5) {
   print(threeprime_sgrna_counts[[offset_label]])
 }
 ```
+
+
+### 3' sgRNA summaries
 
 ```{r}
 #| label: summarize-three-prime-counts-sgrna
@@ -318,6 +403,8 @@ for (offset in 0:-5) {
   print(threeprime_sgrna_counts_summarized[[offset_label]])
 }
 ```
+
+### 3' sgRNA plots
 
 ```{r}
 #| label: plot_threeprime-count-sgrna
