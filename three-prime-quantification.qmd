@@ -1,0 +1,418 @@
+---
+title: "Quantification of Three Prime Coverage"
+author: "Lance Parsons"
+date: last-modified
+format:
+  html:
+    toc: true
+    code-fold: true
+    df-print: paged
+    embed-resources: true
+    fig-format: svg
+editor: source
+---
+
+# Load libraries
+
+This project uses `renv` to keep track of installed packages. Install `renv` if not installed and load dependencies with `renv::restore()`.
+
+``` r
+install.packages("renv")
+renv::restore()
+```
+
+```{r}
+#| label: load-packages
+#| include: false
+#| message: false
+library("readr")
+library("dplyr")
+library("Rsamtools")
+library("tidyr")
+library("stringr")
+library("forcats")
+library("GenomicAlignments")
+library("plyranges")
+library("ggplot2")
+```
+
+# Read sample data
+
+{{< include _sample-metadata.qmd >}}
+
+# Exogenous RNA counts
+
+{{< include _exogenous-alignments.qmd >}}
+
+# Human small RNA gene counts
+
+{{< include _human-small-rna-counts.qmd >}}
+
+## Human small RNA gene totals
+
+```{r}
+#| label: sum-human-small-rna
+human_rna_totals <- human_gene_counts %>%
+  pivot_longer(
+    cols = -"gene",
+    names_to = "sample_unit",
+    values_to = "count"
+  ) %>%
+  group_by(.data$sample_unit) %>%
+  summarize(count = sum(.data$count, na.rm = TRUE))
+
+### Export human RNA totals
+write_tsv(human_rna_totals, "human_rna_count_totals.tsv")
+human_rna_totals
+```
+
+
+# 3' Coverage Quantification
+
+Here we attempt to quantify the difference in the cis-active coverage on the three-prime (3') between the parental and SSB-ko4 samples. This is done by first counting the number of cis-active fragments for each sample that contain the first nucleotide of the primer binding site (PBS) and the number of cis-active fragments that do not cover that base. Then, for each sample we normalize these counts to the total human smRNA and finally compute the fraction of cis-active fragments containing the first nucleotide of the PBS.
+
+```{r}
+#| label: cis-actitve-pbs-quantification
+
+# Create table with: sample, active_cis_pbs, active_cis_nopbs
+three_prime_quanitification <- tibble(
+  sample_unit = character(),
+  sequence_name = character(),
+  cis_active_pbs = integer(),
+  cis_active_nopbs = integer(),
+  cis_active_full_sgrna = integer(),
+  cis_active_partial_sgrna = integer(),
+  human_small_rna = integer(),
+)
+for (rna_species in names(rna_species_plot_data)) {
+  rna_species_data <- rna_species_plot_data[[rna_species]]
+  for (sample_unit in names(rna_species_data)) {
+    sample_unit_data <- rna_species_data[[sample_unit]]
+
+    # Read annotations for PBS location
+    annotations <- read_tsv(
+      sprintf("data/references/exogenous-rna/%s.bed", rna_species),
+      col_names = c("chrom", "chromStart", "chromEnd", "name"),
+      col_types = "ciic"
+    )
+    pbs_start <- annotations %>%
+      filter(name == "PBS") %>%
+      pull(chromStart)
+    sgrna_end <- annotations %>%
+      filter(name == "sgRNA_end") %>%
+      pull(chromStart)
+    cis_active_pbs <- length(sample_unit_data$active_cis %>% plyranges::filter(end > pbs_start))
+    cis_active_nopbs <- length(sample_unit_data$active_cis %>% plyranges::filter(end <= pbs_start))
+    cis_active_full_sgrna <- length(sample_unit_data$active_cis %>% plyranges::filter(end >= sgrna_end))
+    cis_active_partial_sgrna <- length(sample_unit_data$active_cis %>% plyranges::filter(end < sgrna_end))
+    human_small_rna <- normalization_factor(sample_unit, rna_species, "active_cis", "human_small_rna")
+    three_prime_quanitification <- three_prime_quanitification %>%
+      add_row(
+        sample_unit = sample_unit,
+        sequence_name = rna_species,
+        cis_active_pbs = cis_active_pbs,
+        cis_active_nopbs = cis_active_nopbs,
+        cis_active_full_sgrna = cis_active_full_sgrna,
+        cis_active_partial_sgrna = cis_active_partial_sgrna,
+        human_small_rna = human_small_rna,
+      )
+  }
+}
+three_prime_quanitification <- three_prime_quanitification %>%
+  mutate(norm_cis_active_pbs = cis_active_pbs / human_small_rna) %>%
+  mutate(norm_cis_active_nopbs = cis_active_nopbs / human_small_rna) %>%
+  mutate(fraction_cis_active_pbs = cis_active_pbs / (cis_active_pbs + cis_active_nopbs)) %>%
+  mutate(norm_cis_active_full_sgrna  = cis_active_full_sgrna  / human_small_rna) %>%
+  mutate(norm_cis_active_partial_sgrna = cis_active_partial_sgrna / human_small_rna) %>%
+  mutate(fraction_cis_active_sgrna = cis_active_full_sgrna / (cis_active_full_sgrna + cis_active_partial_sgrna)) %>%
+  full_join(sample_units, by = join_by(sample_unit))
+three_prime_quanitification
+write_tsv(three_prime_quanitification, "three-prime-quantification.tsv")
+```
+
+
+```{r}
+#| label: normalize-cis-active-pbs
+
+three_prime_quanitification_summarized <-
+  three_prime_quanitification %>%
+  dplyr::group_by(sequence_name, cell_line, day) %>%
+  summarize(
+    cis_active_pbs_mean = mean(cis_active_pbs),
+    cis_active_pbs_se = sd(cis_active_pbs) / sqrt(length(cis_active_pbs)),
+    norm_cis_active_pbs_mean = mean(norm_cis_active_pbs),
+    norm_cis_active_pbs_se = sd(norm_cis_active_pbs) / sqrt(length(norm_cis_active_pbs)),
+    cis_active_nopbs_mean = mean(cis_active_nopbs),
+    cis_active_nopbs_se = sd(cis_active_nopbs) / sqrt(length(cis_active_nopbs)),
+    norm_cis_active_nopbs_mean = mean(norm_cis_active_nopbs),
+    fraction_cis_active_pbs_mean = mean(fraction_cis_active_pbs),
+    fraction_cis_active_pbs_se = sd(fraction_cis_active_pbs) / sqrt(length(fraction_cis_active_pbs)),
+    #
+    cis_active_full_sgrna_mean = mean(cis_active_full_sgrna),
+    cis_active_full_sgrna_se = sd(cis_active_full_sgrna) / sqrt(length(cis_active_full_sgrna)),
+    norm_cis_active_full_sgrna_mean = mean(norm_cis_active_full_sgrna),
+    norm_cis_active_full_sgrna_se = sd(norm_cis_active_full_sgrna) / sqrt(length(norm_cis_active_full_sgrna)),
+    cis_active_partial_sgrna_mean = mean(cis_active_partial_sgrna),
+    cis_active_partial_sgrna_se = sd(cis_active_partial_sgrna) / sqrt(length(cis_active_partial_sgrna)),
+    norm_cis_active_partial_sgrna_mean = mean(norm_cis_active_partial_sgrna),
+    fraction_cis_active_sgrna_mean = mean(fraction_cis_active_sgrna),
+    fraction_cis_active_sgrna_se = sd(fraction_cis_active_sgrna) / sqrt(length(fraction_cis_active_sgrna)),
+    .groups = "keep"
+  )
+three_prime_quanitification_summarized
+write_tsv(three_prime_quanitification_summarized, "three-prime-quantification-summarized.tsv")
+
+```
+
+
+```{r}
+#| label: plot_threeprime-quantification-pbs
+
+p <- ggplot(
+  summarized_three_prime_quantification %>%
+    mutate(sample_day = interaction(sequence_name, day)),
+  aes(
+    fill = cell_line,
+    y = fraction_cis_active_pbs_mean,
+    x = sample_day,
+  )
+) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_errorbar(aes(
+    ymin = fraction_cis_active_pbs_mean - fraction_cis_active_pbs_se,
+    ymax = fraction_cis_active_pbs_mean + fraction_cis_active_pbs_se
+  ), width = .2, position = position_dodge(.9)) +
+  ggtitle("PBS Coverage") +
+  ylab("Fraction of reads covering PBS start") +
+  xlab("Sample/Day") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0))
+p
+```
+
+
+```{r}
+#| label: plot_threeprime-quantification-sgrna
+
+p <- ggplot(
+  summarized_three_prime_quantification %>%
+    mutate(sample_day = interaction(sequence_name, day)),
+  aes(
+    fill = cell_line,
+    y = fraction_cis_active_sgrna_mean,
+    x = sample_day,
+  )
+) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_errorbar(aes(
+    ymin = fraction_cis_active_sgrna_mean - fraction_cis_active_sgrna_se,
+    ymax = fraction_cis_active_sgrna_mean + fraction_cis_active_sgrna_se
+  ), width = .2, position = position_dodge(.9)) +
+  ggtitle("sgRNA Coverage") +
+  ylab("Fraction of reads covering sgRNA end") +
+  xlab("Sample/Day") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0))
+p
+```
+
+```{r}
+#| label: three-prime-counts-function
+
+cis_active_threeprime_counts <- function(rna_species_plot_data, annotation, with_operator, without_operator, offset = 0) {
+  with_fun = match.fun(with_operator)
+  without_fun = match.fun(without_operator)
+  with_annotation_name <- sprintf("cis_active_with_%s", annotation)
+  without_annotation_name <- sprintf("cis_active_without_%s", annotation)
+  if (offset != 0) {
+    with_annotation_name <- sprintf("%s_%s", with_annotation_name, offset)
+    without_annotation_name <- sprintf("%s_%s", without_annotation_name, offset)
+  }
+  # Create table with: sample, with_annotation, without_annotation, human_small_rna
+  three_prime_quanitification <- tibble(
+    sample_unit = character(),
+    sequence_name = character(),
+    "{with_annotation_name}" := integer(),
+    "{without_annotation_name}" := integer(),
+    human_small_rna = integer(),
+  )
+  for (rna_species in names(rna_species_plot_data)) {
+    rna_species_data <- rna_species_plot_data[[rna_species]]
+    for (sample_unit in names(rna_species_data)) {
+      sample_unit_data <- rna_species_data[[sample_unit]]
+  
+      # Read annotations
+      annotations <- read_tsv(
+        sprintf("data/references/exogenous-rna/%s.bed", rna_species),
+        col_names = c("chrom", "chromStart", "chromEnd", "name"),
+        col_types = "ciic"
+      )
+      annotation_location <- annotations %>%
+        filter(name == annotation) %>%
+        pull(chromStart) + offset
+      cis_active_with_annotation <- length(sample_unit_data$active_cis %>% 
+                                             plyranges::filter(with_fun(end, annotation_location)))
+      cis_active_without_annotation <- length(sample_unit_data$active_cis %>% 
+                                             plyranges::filter(without_fun(end, annotation_location)))
+      human_small_rna <- normalization_factor(sample_unit, rna_species, "active_cis", "human_small_rna")
+      three_prime_quanitification <- three_prime_quanitification %>%
+        add_row(
+          sample_unit = sample_unit,
+          sequence_name = rna_species,
+          "{with_annotation_name}" := cis_active_with_annotation,
+          "{without_annotation_name}" := cis_active_without_annotation,
+          human_small_rna = human_small_rna,
+        )
+    }
+  }
+  three_prime_quanitification <- three_prime_quanitification %>%
+    mutate("norm_{with_annotation_name}" := .data[[with_annotation_name]]  / human_small_rna) %>%
+    mutate("norm_{without_annotation_name}" := .data[[without_annotation_name]]  / human_small_rna) %>%
+    mutate("fraction_{with_annotation_name}" := .data[[with_annotation_name]] / (.data[[with_annotation_name]] + .data[[without_annotation_name]])) %>%
+    full_join(sample_units, by = join_by(sample_unit))
+  return(three_prime_quanitification)
+}
+
+# t <- cis_active_threeprime_counts(rna_species_plot_data, "PBS", ">", "<=")
+```
+
+```{r}
+#| label: summarize-three-prime-counts-function
+
+summarize_three_prime_counts <- function(three_prime_quanitification, with_column, without_column) {
+  summarized_data <- three_prime_quanitification %>%
+    dplyr::group_by(sequence_name, cell_line, day) %>%
+    summarize(
+      "{with_column}_mean" := mean( .data[[with_column]] ),
+      "{with_column}_se" := sd( .data[[with_column]] ) / sqrt(length(.data[[with_column]])),
+      
+      "norm_{with_column}_mean" := mean( .data[[paste0("norm_", with_column)]] ),
+      "norm_{with_column}_se" := sd( .data[[paste0("norm_", with_column)]] ) / sqrt(length(.data[[paste0("norm_", with_column)]])),
+      
+      "{without_column}_mean" := mean( .data[[without_column]] ),
+      "{without_column}_se" := sd( .data[[without_column]] ) / sqrt(length(.data[[without_column]])),
+      
+      "norm_{without_column}_mean" := mean( .data[[paste0("norm_", without_column)]] ),
+      "norm_{without_column}_se" := sd( .data[[paste0("norm_", without_column)]] ) / sqrt(length(.data[[paste0("norm_", without_column)]])),
+      
+      "fraction_{with_column}_mean" := mean(.data[[paste0("fraction_", with_column)]]),
+      "fraction_{with_column}_se" := sd(.data[[paste0("fraction_", with_column)]]) / sqrt(length( .data[[paste0("fraction_", with_column)]] )),
+      .groups = "keep"
+  )
+  return(summarized_data)
+}
+
+# ts <- summarize_three_prime_counts(t, "cis_active_with_PBS", "cis_active_without_PBS")
+# ts
+# write_tsv(three_prime_quanitification_summarized, "three-prime-quantification-summarized.tsv")
+```
+
+
+
+```{r}
+#| label: three-prime-counts-pbs
+threeprime_dir = "threeprime-counts"
+dir.create(threeprime_dir, showWarnings = FALSE)
+threeprime_pbs_counts <- cis_active_threeprime_counts(rna_species_plot_data, "PBS", ">", "<=")
+write_tsv(threeprime_pbs_counts, file.path(threeprime_dir, "threeprime-pbs-counts.tsv"))
+threeprime_pbs_counts
+```
+
+```{r}
+#| label: summarize-three-prime-counts-pbs
+threeprime_pbs_counts_summarized <- summarize_three_prime_counts(
+  threeprime_pbs_counts, "cis_active_with_PBS", "cis_active_without_PBS")
+write_tsv(threeprime_pbs_counts_summarized, file.path(threeprime_dir, "threeprime-pbs-counts-summarized.tsv"))
+threeprime_pbs_counts_summarized
+```
+
+
+```{r}
+#| label: plot_threeprime-count-pbs
+
+p <- ggplot(
+  threeprime_pbs_counts_summarized %>%
+    mutate(sample_day = interaction(sequence_name, day)),
+  aes(
+    fill = cell_line,
+    y = fraction_cis_active_with_PBS_mean,
+    x = sample_day,
+  )
+) +
+  geom_bar(position = "dodge", stat = "identity") +
+  geom_errorbar(aes(
+    ymin = fraction_cis_active_with_PBS_mean - fraction_cis_active_with_PBS_se,
+    ymax = fraction_cis_active_with_PBS_mean + fraction_cis_active_with_PBS_se
+  ), width = .2, position = position_dodge(.9)) +
+  ggtitle("PBS Coverage") +
+  ylab("Fraction of reads covering PBS start") +
+  xlab("Sample/Day") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0))
+p
+```
+
+
+
+```{r}
+#| label: three-prime-counts-sgrna
+
+threeprime_sgrna_counts <- list()
+for (offset in 0:-5) {
+  offset_label <- paste0("offset", offset)
+  threeprime_dir = "threeprime-counts"
+  dir.create(threeprime_dir, showWarnings = FALSE)
+  threeprime_sgrna_counts[[offset_label]] <- 
+    cis_active_threeprime_counts(rna_species_plot_data, "sgRNA_end", ">", "<=", offset = offset)
+  write_tsv(threeprime_sgrna_counts[[offset_label]],
+            file.path(threeprime_dir, sprintf("threeprime-sgrna-counts-%s.tsv", offset_label)))
+  print(threeprime_sgrna_counts[[offset_label]])
+}
+```
+
+```{r}
+#| label: summarize-three-prime-counts-pbs
+
+threeprime_sgrna_counts_summarized <- list()
+for (offset in 0:-5) {
+  offset_label <- paste0("offset", offset)
+  offset_suffix <- paste0("_", offset)
+  if (offset == 0) {offset_suffix <- ""}
+
+  threeprime_sgrna_counts_summarized[[offset_label]] <- summarize_three_prime_counts(
+    threeprime_sgrna_counts[[offset_label]], 
+    paste0("cis_active_with_sgRNA_end",offset_suffix),
+    paste0("cis_active_without_sgRNA_end", offset_suffix))
+  write_tsv(threeprime_sgrna_counts_summarized[[offset_label]],
+            file.path(threeprime_dir, sprintf("threeprime-sgrna-counts-%s-summarized.tsv", offset_label)))
+  print(threeprime_sgrna_counts_summarized[[offset_label]])
+}
+```
+
+```{r}
+#| label: plot_threeprime-count-sgrna
+for (offset in 0:-5) {
+  offset_label <- paste0("offset", offset)
+  offset_suffix <- paste0("_", offset)
+  if (offset == 0) {offset_suffix <- ""}
+  
+  mean_col <- paste0("fraction_cis_active_with_sgRNA_end", offset_suffix, "_mean")
+  se_col <- paste0("fraction_cis_active_with_sgRNA_end", offset_suffix, "_se")
+  p <- ggplot(
+    threeprime_sgrna_counts_summarized[[offset_label]] %>%
+      mutate(sample_day = interaction(sequence_name, day)),
+    aes(
+      fill = cell_line,
+      y = .data[[mean_col]],
+      x = sample_day,
+    )
+  ) +
+    geom_bar(position = "dodge", stat = "identity") +
+    geom_errorbar(aes(
+      ymin = .data[[mean_col]] - .data[[se_col]],
+      ymax = .data[[mean_col]] + .data[[se_col]]
+    ), width = .2, position = position_dodge(.9)) +
+    ggtitle("sgRNA Coverage") +
+    ylab(sprintf("Fraction of reads covering sgRNA end (%s)", offset)) +
+    xlab("Sample/Day") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 0))
+  print(p)
+}
+```
