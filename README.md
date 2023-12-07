@@ -26,14 +26,18 @@ composed of Quarto notebooks.
     cd <dir>
     ```
 
-2. Download input data
+2. Download input data (or skip and use demo-data)
 
-    Copy data to `data` directory
+    Copy the fastq files into `data` directory
 
-3. Edit config as needed
+3. Edit the configuration as needed (not needed if using demo-data)
 
     ```bash
-    nano config.yaml
+    # Edit location of fastq files
+    nano config/units.yaml
+    # Generally, these can remain unchanged 
+    nano config/samples.yaml
+    nano config/config.yaml
     ```
 
 4. Install dependencies into isolated environment
@@ -48,7 +52,7 @@ composed of Quarto notebooks.
     source activate <project>
     ```
 
-6. Execute main workflow
+6. Execute main workflow (using cluster options is recommended)
 
     ```bash
     snakemake --cores 1
@@ -75,6 +79,7 @@ separately.
    * `fragment-size-distributions.qmd`
    * `alignment_statistics.qmd`
    * `coverage-plots.qmd`
+   * `three-prime-quantification.qmd`
 
 5. Some of the notebooks use parameters to generate a few different versions of
    the plots. If Quarto and all of the required R packages are installed, you
