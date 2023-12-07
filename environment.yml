@@ -3,7 +3,7 @@ name: adamson-smallRNA-batch-3
 channels:
     - conda-forge
     - bioconda
-    - defaults
+    - nodefaults
 dependencies:
     - snakemake>=7.9.0
     - snakefmt>=0.6.1

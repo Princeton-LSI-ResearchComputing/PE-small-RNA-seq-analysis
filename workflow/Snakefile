@@ -77,6 +77,7 @@ rule all:
             "results/exogenous_rna_count/{unit.sample_name}_{unit.unit_name}_idxstats.txt",
             unit=units.itertuples(),
         ),
+        "results/alignments/exogenous_rna_alignment_stats/all_exogenous_rna_alignments_stats.tsv",
 
 
 rule all_trimming:
