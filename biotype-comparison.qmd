@@ -33,6 +33,7 @@ library("dplyr")
 library("tidyr")
 library("stringr")
 library("ggplot2")
+library("downloadthis")
 ```
 
 # Read data
@@ -84,9 +85,23 @@ biotype_counts <- biotype_counts %>%
     "_first_proper_pair_biotype_count.txt",
     ""
   )) %>%
-  tidyr::pivot_longer(!biotype, names_to = "sample", values_to = "count")
+  tidyr::pivot_longer(!biotype, names_to = "sample", values_to = "count") %>%
+  # Add fraction column
+  mutate(fraction_in_sample = count / sum(count, na.rm = TRUE)) %>% arrange(sample)
 
 biotype_counts
+
+biotype_counts %>% as.data.frame() %>%
+  download_this(
+    output_name = "biotype_counts",
+    output_extension = ".csv",
+    button_label = "Download data as csv",
+    button_type = "default",
+    csv2 = FALSE,
+    self_contained = TRUE,
+    has_icon = TRUE,
+    icon = "fa fa-save"
+  )
 ```
 
 ```{r fig.height=7, fig.width=16}

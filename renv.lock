@@ -646,6 +646,23 @@
         "sass"
       ]
     },
+    "bsplus": {
+      "Package": "bsplus",
+      "Version": "0.1.4",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "2b1c662ff3624ddb37fcb07c6449e55b",
+      "Requirements": [
+        "glue",
+        "htmltools",
+        "jsonlite",
+        "lubridate",
+        "magrittr",
+        "purrr",
+        "rmarkdown",
+        "stringr"
+      ]
+    },
     "cachem": {
       "Package": "cachem",
       "Version": "1.0.8",
@@ -825,6 +842,25 @@
       "Repository": "CRAN",
       "Hash": "b18a9cf3c003977b0cc49d5e76ebe48d",
       "Requirements": []
+    },
+    "downloadthis": {
+      "Package": "downloadthis",
+      "Version": "0.3.3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "2a34becf30a499f59c9a831993c58d4a",
+      "Requirements": [
+        "base64enc",
+        "bsplus",
+        "fs",
+        "ggplot2",
+        "htmltools",
+        "magrittr",
+        "mime",
+        "readr",
+        "writexl",
+        "zip"
+      ]
     },
     "dplyr": {
       "Package": "dplyr",
@@ -1237,6 +1273,17 @@
       "Hash": "3434988413fbabfdb0fcd6067d7e1aa4",
       "Requirements": [
         "lattice"
+      ]
+    },
+    "lubridate": {
+      "Package": "lubridate",
+      "Version": "1.9.3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "680ad542fbcf801442c83a6ac5a2126c",
+      "Requirements": [
+        "generics",
+        "timechange"
       ]
     },
     "magrittr": {
@@ -2003,6 +2050,16 @@
         "withr"
       ]
     },
+    "timechange": {
+      "Package": "timechange",
+      "Version": "0.2.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "8548b44f79a35ba1791308b61e6012d7",
+      "Requirements": [
+        "cpp11"
+      ]
+    },
     "tinytex": {
       "Package": "tinytex",
       "Version": "0.48",
@@ -2099,6 +2156,14 @@
       "Hash": "d77c6f74be05c33164e33fbc85540cae",
       "Requirements": []
     },
+    "writexl": {
+      "Package": "writexl",
+      "Version": "1.4.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "43da939eaf6681c88eba977b9012dad9",
+      "Requirements": []
+    },
     "xfun": {
       "Package": "xfun",
       "Version": "0.40",
@@ -2137,6 +2202,14 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "0d0056cc5383fbc240ccd0cb584bf436",
+      "Requirements": []
+    },
+    "zip": {
+      "Package": "zip",
+      "Version": "2.3.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "d98c94dacb7e0efcf83b0a133a705504",
       "Requirements": []
     },
     "zlibbioc": {
