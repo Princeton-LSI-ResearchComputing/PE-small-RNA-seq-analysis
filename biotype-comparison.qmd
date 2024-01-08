@@ -117,3 +117,156 @@ p <- ggplot(
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
 p
 ```
+
+## Biotypes from featureCounts
+
+```{r}
+featurecounts_files <- paste0(
+  "results/smrna_featurecounts/",
+  sample_units$sample_unit,
+  "_first_proper_pair.featureCounts"
+)
+
+featurecounts <- readr::read_tsv(
+  featurecounts_files[1],
+  comment = "#",
+  col_types = "cccccici")
+
+for (i in 2:length(featurecounts_files)) {
+  featurecounts_sample <-
+    readr::read_tsv(
+      featurecounts_files[i],
+      comment = "#",
+      col_types = "c------i")
+
+  featurecounts <- featurecounts %>%
+    dplyr::full_join(featurecounts_sample, by = "Geneid")
+}
+
+featurecounts <- featurecounts %>%
+  rename_all(~ stringr::str_replace_all(
+    ., "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/filtered/", ""
+  )) %>%
+  rename_all(~ str_replace_all(
+    .,
+    "_first_proper_pair.bam",
+    ""
+  )) %>%
+  # Pivot
+  select(-Chr, -Start, -End, -Strand, -Length) %>%
+  tidyr::pivot_longer(!Geneid & !gene_type, names_to = "sample", values_to = "count") %>%
+  # Summarize (count by type)
+  group_by(sample, gene_type) %>% summarize(count = sum(count), .groups = "keep") %>%
+  # Add fraction column
+  group_by(sample) %>%
+  mutate(fraction_in_sample = count / sum(count, na.rm = TRUE)) %>% arrange(sample)
+
+
+featurecounts
+
+featurecounts %>% as.data.frame() %>%
+  download_this(
+    output_name = "featurecounts",
+    output_extension = ".csv",
+    button_label = "Download data as csv",
+    button_type = "default",
+    csv2 = FALSE,
+    self_contained = TRUE,
+    has_icon = TRUE,
+    icon = "fa fa-save"
+  )
+```
+
+
+```{r fig.height=7, fig.width=16}
+#| label: biotype-barplot
+#| fig-height: 7
+#| fig-width: 16
+#| fig-format: pdf
+p <- ggplot(
+  data = subset(featurecounts, !is.na(count)),
+  aes(x = sample, y = count, fill = gene_type)
+) +
+  geom_bar(stat = "identity", position = "fill") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+p
+```
+
+
+
+## Biotypes from featureCounts (allowMultiOverlap)
+
+```{r}
+featurecounts_multioverlap_files <- paste0(
+  "results/smrna_featurecounts_multioverlap/",
+  sample_units$sample_unit,
+  "_first_proper_pair.featureCounts"
+)
+
+featurecounts_multioverlap <- readr::read_tsv(
+  featurecounts_multioverlap_files[1],
+  comment = "#",
+  col_types = "cccccici")
+
+for (i in 2:length(featurecounts_multioverlap_files)) {
+  featurecounts_sample <-
+    readr::read_tsv(
+      featurecounts_multioverlap_files[i],
+      comment = "#",
+      col_types = "c------i")
+
+  featurecounts_multioverlap <- featurecounts_multioverlap %>%
+    dplyr::full_join(featurecounts_sample, by = "Geneid")
+}
+
+featurecounts_multioverlap <- featurecounts_multioverlap %>%
+  rename_all(~ stringr::str_replace_all(
+    ., "results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/filtered/", ""
+  )) %>%
+  rename_all(~ str_replace_all(
+    .,
+    "_first_proper_pair.bam",
+    ""
+  )) %>%
+  # Pivot
+  select(-Chr, -Start, -End, -Strand, -Length) %>%
+  tidyr::pivot_longer(!Geneid & !gene_type, names_to = "sample", values_to = "count") %>%
+  # Summarize (count by type)
+  group_by(sample, gene_type) %>% summarize(count = sum(count), .groups = "keep") %>%
+  # Add fraction column
+  group_by(sample) %>%
+  mutate(fraction_in_sample = count / sum(count, na.rm = TRUE)) %>% arrange(sample)
+
+
+featurecounts_multioverlap
+
+featurecounts_multioverlap %>% as.data.frame() %>%
+  download_this(
+    output_name = "featurecounts_multioverlap",
+    output_extension = ".csv",
+    button_label = "Download data as csv",
+    button_type = "default",
+    csv2 = FALSE,
+    self_contained = TRUE,
+    has_icon = TRUE,
+    icon = "fa fa-save"
+  )
+```
+
+
+```{r fig.height=7, fig.width=16}
+#| label: biotype-barplot
+#| fig-height: 7
+#| fig-width: 16
+#| fig-format: pdf
+p <- ggplot(
+  data = subset(featurecounts_multioverlap, !is.na(count)),
+  aes(x = sample, y = count, fill = gene_type)
+) +
+  geom_bar(stat = "identity", position = "fill") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+p
+```
+
+
+
