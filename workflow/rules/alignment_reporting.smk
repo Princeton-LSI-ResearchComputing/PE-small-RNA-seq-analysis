@@ -34,6 +34,10 @@ rule exogenous_rna_alignment_stats:
             "results/alignments/exogenous_rna/sorted/{unit.sample_name}_{unit.unit_name}.bam.bai",
             unit=units.itertuples(),
         ),
+        human_small_rna=expand(
+            "results/smrna_count/{unit.sample_name}_{unit.unit_name}_first_proper_pair_gene_count.txt",
+            unit=units.itertuples(),
+        ),
     output:
         "results/alignments/exogenous_rna_alignment_stats/all_exogenous_rna_alignments_stats.tsv",
     log:
