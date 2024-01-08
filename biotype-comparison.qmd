@@ -179,7 +179,7 @@ featurecounts %>% as.data.frame() %>%
 
 
 ```{r fig.height=7, fig.width=16}
-#| label: biotype-barplot
+#| label: biotype-featurecounts-barplot
 #| fig-height: 7
 #| fig-width: 16
 #| fig-format: pdf
@@ -255,7 +255,7 @@ featurecounts_multioverlap %>% as.data.frame() %>%
 
 
 ```{r fig.height=7, fig.width=16}
-#| label: biotype-barplot
+#| label: biotype-featurecounts-multioverlap-barplot
 #| fig-height: 7
 #| fig-width: 16
 #| fig-format: pdf
