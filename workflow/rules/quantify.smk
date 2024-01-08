@@ -61,3 +61,57 @@ rule count_exogenous_rna_alignments:
         extra="",
     wrapper:
         "v1.23.4/bio/samtools/idxstats"
+
+
+rule feature_counts:
+    input:
+        # list of sam or bam files
+        samples="results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/filtered/{sample}_{unit}_first_proper_pair.bam",
+        annotation="data/references/gencode.v43.primary_assembly.annotation.gff3.gz",
+        # optional input
+        #chr_names="",           # implicitly sets the -A flag
+        #fasta="genome.fasta"    # implicitly sets the -G flag
+    output:
+        multiext(
+            "results/smrna_featurecounts/{sample}_{unit}_first_proper_pair",
+            ".featureCounts",
+            ".featureCounts.summary",
+        ),
+    threads: 4
+    resources:
+        mem_mb=30720,
+    params:
+        strand=0,  # optional; strandness of the library (0: unstranded [default], 1: stranded, and 2: reversely stranded)
+        r_path="",  # implicitly sets the --Rpath flag
+        extra="-p --countReadPairs --extraAttributes gene_type",
+    log:
+        "results/logs/smrna_featurecounts/{sample}_{unit}.log",
+    wrapper:
+        "v3.3.3/bio/subread/featurecounts"
+
+
+rule feature_counts_multioverlap:
+    input:
+        # list of sam or bam files
+        samples="results/alignments/Homo_sapiens.GRCh38.dna.primary_assembly/filtered/{sample}_{unit}_first_proper_pair.bam",
+        annotation="data/references/gencode.v43.primary_assembly.annotation.gff3.gz",
+        # optional input
+        #chr_names="",           # implicitly sets the -A flag
+        #fasta="genome.fasta"    # implicitly sets the -G flag
+    output:
+        multiext(
+            "results/smrna_featurecounts_multioverlap/{sample}_{unit}_first_proper_pair",
+            ".featureCounts",
+            ".featureCounts.summary",
+        ),
+    threads: 4
+    resources:
+        mem_mb=30720,
+    params:
+        strand=0,  # optional; strandness of the library (0: unstranded [default], 1: stranded, and 2: reversely stranded)
+        r_path="",  # implicitly sets the --Rpath flag
+        extra="-O -p --countReadPairs --extraAttributes gene_type",
+    log:
+        "results/logs/smrna_featurecounts/{sample}_{unit}.log",
+    wrapper:
+        "v3.3.3/bio/subread/featurecounts"

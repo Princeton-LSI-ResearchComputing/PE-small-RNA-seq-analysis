@@ -78,6 +78,22 @@ rule all:
             unit=units.itertuples(),
         ),
         "results/alignments/exogenous_rna_alignment_stats/all_exogenous_rna_alignments_stats.tsv",
+        expand(
+            "results/smrna_featurecounts/{unit.sample_name}_{unit.unit_name}_first_proper_pair.{ext}",
+            unit=units.itertuples(),
+            ext=[
+                "featureCounts",
+                "featureCounts.summary",
+            ],
+        ),
+        expand(
+            "results/smrna_featurecounts_multioverlap/{unit.sample_name}_{unit.unit_name}_first_proper_pair.{ext}",
+            unit=units.itertuples(),
+            ext=[
+                "featureCounts",
+                "featureCounts.summary",
+            ],
+        ),
 
 
 rule all_trimming:
@@ -154,6 +170,22 @@ rule all_quantify:
         expand(
             "results/exogenous_rna_count/{unit.sample_name}_{unit.unit_name}_idxstats.txt",
             unit=units.itertuples(),
+        ),
+        expand(
+            "results/smrna_featurecounts/{unit.sample_name}_{unit.unit_name}_first_proper_pair.{ext}",
+            unit=units.itertuples(),
+            ext=[
+                "featureCounts",
+                "featureCounts.summary",
+            ],
+        ),
+        expand(
+            "results/smrna_featurecounts_multioverlap/{unit.sample_name}_{unit.unit_name}_first_proper_pair.{ext}",
+            unit=units.itertuples(),
+            ext=[
+                "featureCounts",
+                "featureCounts.summary",
+            ],
         ),
 
 
