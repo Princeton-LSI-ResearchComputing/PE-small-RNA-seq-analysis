@@ -5,6 +5,7 @@ channels:
     - bioconda
     - nodefaults
 dependencies:
-    - snakemake>=7.9.0
+    - snakemake>=7.9.0,<8
+    - python<3.12  # see snakemake/snakemake#2480
     - snakefmt>=0.6.1
     - drmaa>=0.7.9
